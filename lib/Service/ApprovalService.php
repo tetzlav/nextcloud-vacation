@@ -408,7 +408,7 @@ class ApprovalService
         return $updated;
     }
 
-    public function reclassifyManualApprovalsAsAutomaticForYear(int $year, string $userId, string $actorId): int
+    public function resetManualApprovalsForAutoApprovalWait(int $year, string $userId, string $actorId): int
     {
         if (!$this->reportService->isCalendarAdmin($actorId)) {
             return 0;
@@ -436,9 +436,14 @@ class ApprovalService
             $changed = $this->runInTransaction(function () use ($requestId, $actorId, $reason, $now): bool {
                 $qb = $this->db->getQueryBuilder();
                 $qb->update('vacation_requests')
+                    ->set('status', $qb->createNamedParameter(self::STATUS_PENDING_DETECTION))
                     ->set('approved_by', $qb->createNamedParameter(null))
-                    ->set('auto_approved', $qb->createNamedParameter(1, IQueryBuilder::PARAM_INT))
-                    ->set('auto_approval_reason', $qb->createNamedParameter($reason))
+                    ->set('approved_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                    ->set('notified_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                    ->set('auto_approved', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                    ->set('auto_approval_reason', $qb->createNamedParameter(null))
+                    ->set('first_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
                     ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
                     ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)))
                     ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_APPROVED)))
@@ -447,8 +452,7 @@ class ApprovalService
                     return false;
                 }
 
-                $this->revisionService->recordApproval($requestId, $now);
-                $this->recordAudit($requestId, 'reclassified_as_automatic', $actorId, $reason, $now);
+                $this->recordAudit($requestId, 'manual_approval_reset_for_auto_stabilization', $actorId, $reason, $now);
                 return true;
             });
             if ($changed) {

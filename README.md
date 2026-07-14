@@ -246,13 +246,14 @@ Bulk approval never bypasses the stabilization wait. Requests in `pending_detect
 remain untouched, and stabilized requests covered by an auto-approval user or group are
 approved automatically before the remaining manual requests are processed.
 
-If an older bulk operation incorrectly stored approvals for an auto-approval user as
-manual, they can be reclassified without changing calendar events. The command keeps
-the original approval time, records a new immutable revision and audit entry, and does
-not queue email:
+If a bulk operation accidentally approved fresh requests for an auto-approval user
+manually, the requests can be returned to stabilization without changing calendar
+events. The original approval revision remains immutable, an audit entry records the
+repair, the stabilization wait starts again, and no repair email is queued. The normal
+automatic approval creates the next revision and notification after the wait expires:
 
 ```bash
-sudo -u nextcloud php occ vacation:reclassify-auto-approvals 2026 \
+sudo -u nextcloud php occ vacation:reset-auto-approval-wait 2026 \
   --user=employee.user \
   --actor=test.user
 ```

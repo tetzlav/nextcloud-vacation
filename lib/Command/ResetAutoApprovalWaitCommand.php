@@ -14,7 +14,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
 
-class ReclassifyAutoApprovalsCommand extends Command
+class ResetAutoApprovalWaitCommand extends Command
 {
     public function __construct(
         private ApprovalService $approvalService,
@@ -26,12 +26,12 @@ class ReclassifyAutoApprovalsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setName('vacation:reclassify-auto-approvals')
-            ->setDescription('Reclassify manual approvals as automatic for a configured user and year')
+            ->setName('vacation:reset-auto-approval-wait')
+            ->setDescription('Reset accidental manual approvals so configured automatic approval waits again')
             ->addArgument('year', InputArgument::REQUIRED, 'Year to repair')
-            ->addOption('user', null, InputOption::VALUE_REQUIRED, 'User ID whose approvals should be repaired')
+            ->addOption('user', null, InputOption::VALUE_REQUIRED, 'User ID whose approvals should be reset')
             ->addOption('actor', null, InputOption::VALUE_REQUIRED, 'Calendar manager user ID performing the repair')
-            ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Repair without an interactive confirmation');
+            ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Reset without an interactive confirmation');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -68,7 +68,7 @@ class ReclassifyAutoApprovalsCommand extends Command
             /** @var QuestionHelper $helper */
             $helper = $this->getHelper('question');
             $confirmed = $helper->ask($input, $output, new ConfirmationQuestion(sprintf(
-                'Reclassify all manual approvals for %s in %d as automatic (%s)? [y/N] ',
+                'Reset all manual approvals for %s in %d and restart automatic stabilization (%s)? [y/N] ',
                 $userId,
                 $year,
                 $reason
@@ -79,9 +79,9 @@ class ReclassifyAutoApprovalsCommand extends Command
             }
         }
 
-        $updated = $this->approvalService->reclassifyManualApprovalsAsAutomaticForYear($year, $userId, $actor);
+        $updated = $this->approvalService->resetManualApprovalsForAutoApprovalWait($year, $userId, $actor);
         $output->writeln(sprintf(
-            '<info>%d approval%s reclassified as automatic. No emails were queued.</info>',
+            '<info>%d approval%s reset to stabilization. No emails were queued.</info>',
             $updated,
             $updated === 1 ? '' : 's'
         ));
