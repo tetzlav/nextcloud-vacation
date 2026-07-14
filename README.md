@@ -242,6 +242,21 @@ sudo -u nextcloud php occ vacation:approve-year 2026 --actor=test.user
 sudo -u nextcloud php occ vacation:confirm-cancellations 2026 --actor=test.user
 ```
 
+Bulk approval never bypasses the stabilization wait. Requests in `pending_detection`
+remain untouched, and stabilized requests covered by an auto-approval user or group are
+approved automatically before the remaining manual requests are processed.
+
+If an older bulk operation incorrectly stored approvals for an auto-approval user as
+manual, they can be reclassified without changing calendar events. The command keeps
+the original approval time, records a new immutable revision and audit entry, and does
+not queue email:
+
+```bash
+sudo -u nextcloud php occ vacation:reclassify-auto-approvals 2026 \
+  --user=employee.user \
+  --actor=test.user
+```
+
 Year-wide approvals queue employee notifications by default, and year-wide cancellation
 confirmation queues employee and approver notifications. Use `--no-notify` for a single
 silent bulk operation; the global `employee_notifications_enabled` setting remains the

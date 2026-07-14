@@ -31,6 +31,7 @@
         <command>OCA\NextcloudVacation\Command\RequestCommand</command>
         <command>OCA\NextcloudVacation\Command\ApproveYearCommand</command>
         <command>OCA\NextcloudVacation\Command\ConfirmCancellationsCommand</command>
+        <command>OCA\NextcloudVacation\Command\ReclassifyAutoApprovalsCommand</command>
     </commands>
     <settings>
         <admin-section>OCA\NextcloudVacation\Settings\Section</admin-section>

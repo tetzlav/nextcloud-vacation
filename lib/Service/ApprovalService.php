@@ -189,7 +189,7 @@ class ApprovalService
         }
     }
 
-    public function approve(int $requestId, string $approverId): string
+    public function approve(int $requestId, string $approverId, bool $notify = true, string $auditAction = 'approved'): string
     {
         if (!$this->reportService->isCalendarAdmin($approverId)) {
             return 'not_admin';
@@ -202,14 +202,25 @@ class ApprovalService
         if ((string)$request['status'] === self::STATUS_APPROVED) {
             return 'already_approved';
         }
-
         $now = time();
         if ((string)$request['status'] === self::STATUS_CHANGED_AFTER_APPROVAL) {
             $request = $this->refreshRequestFromCurrentCalendar($request, $now);
             $requestId = (int)$request['id'];
         }
+        if ((string)$request['status'] === self::STATUS_PENDING_DETECTION) {
+            return 'not_stabilized';
+        }
+        if (!in_array((string)$request['status'], [self::STATUS_PENDING_APPROVAL, self::STATUS_CHANGED_AFTER_APPROVAL], true)) {
+            return 'not_approvable';
+        }
 
-        $this->runInTransaction(function () use ($requestId, $approverId, $now): void {
+        $autoApprovalReason = $this->autoApprovalReason((string)$request['user_id']);
+        if ($autoApprovalReason !== null) {
+            $this->autoApproveRequest($request, $autoApprovalReason, $now, $notify);
+            return 'approved_automatically';
+        }
+
+        $this->runInTransaction(function () use ($requestId, $approverId, $now, $auditAction): void {
             $qb = $this->db->getQueryBuilder();
             $qb->update('vacation_requests')
                 ->set('status', $qb->createNamedParameter(self::STATUS_APPROVED))
@@ -224,13 +235,15 @@ class ApprovalService
                 ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)));
             $qb->executeStatement();
             $this->revisionService->recordApproval($requestId, $now);
-            $this->recordAudit($requestId, 'approved', $approverId, null, $now);
+            $this->recordAudit($requestId, $auditAction, $approverId, null, $now);
         });
 
         $request['approved_by'] = $approverId;
         $request['approved_at'] = $now;
         $request['status'] = self::STATUS_APPROVED;
-        $this->notifyRequesterApproved($request);
+        if ($notify) {
+            $this->notifyRequesterApproved($request);
+        }
         return 'approved';
     }
 
@@ -383,58 +396,63 @@ class ApprovalService
             return 0;
         }
 
-        $now = time();
-        $requestIds = $this->openRequestIdsForYear($year);
-        $updated = $this->runInTransaction(function () use ($year, $approverId, $now, $requestIds): int {
-            $qb = $this->db->getQueryBuilder();
-            $qb->update('vacation_requests')
-                ->set('status', $qb->createNamedParameter(self::STATUS_APPROVED))
-                ->set('approved_by', $qb->createNamedParameter($approverId))
-                ->set('approved_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
-                ->set('rejected_by', $qb->createNamedParameter(null))
-                ->set('rejected_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
-                ->set('rejection_reason', $qb->createNamedParameter(null))
-                ->set('auto_approved', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
-                ->set('auto_approval_reason', $qb->createNamedParameter(null))
-                ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
-                ->where($qb->expr()->eq('year', $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT)))
-                ->andWhere(
-                    $qb->expr()->orX(
-                        $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_PENDING_DETECTION)),
-                        $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_PENDING_APPROVAL)),
-                        $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_CHANGED_AFTER_APPROVAL))
-                    )
-                );
-
-            $updated = $qb->executeStatement();
-            foreach ($requestIds as $requestId) {
-                $request = $this->requestById($requestId);
-                if (
-                    $request === null
-                    || (string)$request['status'] !== self::STATUS_APPROVED
-                    || (string)$request['approved_by'] !== $approverId
-                    || (int)$request['approved_at'] !== $now
-                ) {
-                    continue;
-                }
-                $this->revisionService->recordApproval($requestId, $now);
-                $this->recordAudit($requestId, 'approved_bulk', $approverId, null, $now);
+        $requestIds = $this->approvableRequestIdsForYear($year);
+        $updated = 0;
+        foreach ($requestIds as $requestId) {
+            $result = $this->approve($requestId, $approverId, $notify, 'approved_bulk');
+            if (in_array($result, ['approved', 'approved_automatically'], true)) {
+                $updated++;
             }
+        }
 
-            return $updated;
-        });
+        return $updated;
+    }
 
-        if ($notify) {
-            foreach ($requestIds as $requestId) {
-                $request = $this->requestById($requestId);
-                if (
-                    $request !== null
-                    && (string)$request['status'] === self::STATUS_APPROVED
-                    && (string)$request['approved_by'] === $approverId
-                    && (int)$request['approved_at'] === $now
-                ) {
-                    $this->notifyRequesterApproved($request);
+    public function reclassifyManualApprovalsAsAutomaticForYear(int $year, string $userId, string $actorId): int
+    {
+        if (!$this->reportService->isCalendarAdmin($actorId)) {
+            return 0;
+        }
+
+        $reason = $this->autoApprovalReason($userId);
+        if ($reason === null) {
+            return 0;
+        }
+
+        $requestIds = [];
+        foreach ($this->requestsForYears([$year]) as $request) {
+            if (
+                (string)$request['user_id'] === $userId
+                && (string)$request['status'] === self::STATUS_APPROVED
+                && (int)($request['auto_approved'] ?? 0) !== 1
+            ) {
+                $requestIds[] = (int)$request['id'];
+            }
+        }
+
+        $now = time();
+        $updated = 0;
+        foreach ($requestIds as $requestId) {
+            $changed = $this->runInTransaction(function () use ($requestId, $actorId, $reason, $now): bool {
+                $qb = $this->db->getQueryBuilder();
+                $qb->update('vacation_requests')
+                    ->set('approved_by', $qb->createNamedParameter(null))
+                    ->set('auto_approved', $qb->createNamedParameter(1, IQueryBuilder::PARAM_INT))
+                    ->set('auto_approval_reason', $qb->createNamedParameter($reason))
+                    ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)))
+                    ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_APPROVED)))
+                    ->andWhere($qb->expr()->eq('auto_approved', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)));
+                if ($qb->executeStatement() !== 1) {
+                    return false;
                 }
+
+                $this->revisionService->recordApproval($requestId, $now);
+                $this->recordAudit($requestId, 'reclassified_as_automatic', $actorId, $reason, $now);
+                return true;
+            });
+            if ($changed) {
+                $updated++;
             }
         }
 
@@ -1522,14 +1540,13 @@ class ApprovalService
         return null;
     }
 
-    private function openRequestIdsForYear(int $year): array
+    private function approvableRequestIdsForYear(int $year): array
     {
         $qb = $this->db->getQueryBuilder();
         $qb->select('id')
             ->from('vacation_requests')
             ->where($qb->expr()->eq('year', $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT)))
             ->andWhere($qb->expr()->orX(
-                $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_PENDING_DETECTION)),
                 $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_PENDING_APPROVAL)),
                 $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_CHANGED_AFTER_APPROVAL))
             ));
@@ -1565,7 +1582,7 @@ class ApprovalService
         return $reason;
     }
 
-    private function autoApproveRequest(array $request, string $reason, int $now): void
+    private function autoApproveRequest(array $request, string $reason, int $now, bool $notify = true): void
     {
         $requestId = (int)$request['id'];
         $this->runInTransaction(function () use ($requestId, $reason, $now): void {
@@ -1591,7 +1608,9 @@ class ApprovalService
         $request['approved_at'] = $now;
         $request['auto_approved'] = 1;
         $request['auto_approval_reason'] = $reason;
-        $this->notifyRequesterAutoApproved($request);
+        if ($notify) {
+            $this->notifyRequesterAutoApproved($request);
+        }
     }
 
     private function runInTransaction(callable $operation): mixed
