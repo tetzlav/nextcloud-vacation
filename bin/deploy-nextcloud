@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+SOURCE_DIR="${SOURCE_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)}"
+NEXTCLOUD_DIR="${NEXTCLOUD_DIR:-/var/www/nextcloud}"
+TARGET_DIR="${TARGET_DIR:-${NEXTCLOUD_DIR}/custom_apps/nextcloud_vacation}"
+RUN_UPGRADE=0
+
+usage() {
+    cat <<'EOF'
+Usage: deploy-nextcloud [--upgrade]
+
+Pull the source repository with --ff-only and deploy it without .git to
+Nextcloud's custom_apps directory.
+
+Options:
+  --upgrade  Run "php occ upgrade" after deployment. Use only when the update
+             contains an app migration, because it may update other apps too.
+  -h, --help Show this help.
+
+Paths can be overridden with SOURCE_DIR, NEXTCLOUD_DIR and TARGET_DIR.
+EOF
+}
+
+while (($# > 0)); do
+    case "$1" in
+        --upgrade)
+            RUN_UPGRADE=1
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            printf 'Unknown option: %s\n\n' "$1" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+for command in git rsync php composer; do
+    if ! command -v "$command" >/dev/null 2>&1; then
+        printf 'Required command not found: %s\n' "$command" >&2
+        exit 1
+    fi
+done
+
+if [[ ! -d "${SOURCE_DIR}/.git" ]]; then
+    printf 'Source directory is not a Git repository: %s\n' "$SOURCE_DIR" >&2
+    exit 1
+fi
+
+if [[ ! -f "${NEXTCLOUD_DIR}/occ" ]]; then
+    printf 'Nextcloud occ not found: %s/occ\n' "$NEXTCLOUD_DIR" >&2
+    exit 1
+fi
+
+if [[ -z "$TARGET_DIR" || "$TARGET_DIR" == "/" || "$(basename -- "$TARGET_DIR")" != "nextcloud_vacation" ]]; then
+    printf 'Refusing unsafe target directory: %s\n' "$TARGET_DIR" >&2
+    exit 1
+fi
+
+if [[ "$SOURCE_DIR" == "$TARGET_DIR" ]]; then
+    printf 'Source and target directory must be different: %s\n' "$SOURCE_DIR" >&2
+    exit 1
+fi
+
+if [[ -n "$(git -C "$SOURCE_DIR" status --porcelain)" ]]; then
+    printf 'Source repository has local changes; deployment aborted:\n' >&2
+    git -C "$SOURCE_DIR" status --short >&2
+    exit 1
+fi
+
+printf 'Updating source repository: %s\n' "$SOURCE_DIR"
+git -C "$SOURCE_DIR" pull --ff-only
+
+printf 'Installing locked PHP dependencies...\n'
+composer install \
+    --working-dir="$SOURCE_DIR" \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
+
+mkdir -p -- "$TARGET_DIR"
+printf 'Deploying to: %s\n' "$TARGET_DIR"
+rsync -a --delete --delete-excluded \
+    --exclude='.git/' \
+    "$SOURCE_DIR/" \
+    "$TARGET_DIR/"
+
+if ((RUN_UPGRADE == 1)); then
+    printf 'Running Nextcloud upgrade explicitly...\n'
+    php "${NEXTCLOUD_DIR}/occ" upgrade
+fi
+
+printf 'Deployed nextcloud-vacation commit %s\n' "$(git -C "$SOURCE_DIR" rev-parse --short HEAD)"

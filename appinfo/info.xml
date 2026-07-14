@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>nextcloud_vacation</id>
+    <name>Vacation</name>
+    <summary>Vacation day reports from Status calendars</summary>
+    <description>Shows used vacation days from users' Status calendars. Configured admins can approve vacation and see the staff overview.</description>
+    <version>0.1.32</version>
+    <licence>mit</licence>
+    <author mail="tetzlav@web.de">Alexander Tetzlav</author>
+    <namespace>NextcloudVacation</namespace>
+    <category>organization</category>
+    <dependencies>
+        <nextcloud min-version="28" max-version="35"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>Vacation</name>
+            <route>nextcloud_vacation.page.index</route>
+            <icon>app.svg</icon>
+            <order>50</order>
+        </navigation>
+    </navigations>
+    <background-jobs>
+        <job>OCA\NextcloudVacation\Cron\SyncVacationRequestsJob</job>
+    </background-jobs>
+    <commands>
+        <command>OCA\NextcloudVacation\Command\MailQueueCommand</command>
+        <command>OCA\NextcloudVacation\Command\SyncCommand</command>
+        <command>OCA\NextcloudVacation\Command\RequestsCommand</command>
+        <command>OCA\NextcloudVacation\Command\RequestCommand</command>
+        <command>OCA\NextcloudVacation\Command\ApproveYearCommand</command>
+        <command>OCA\NextcloudVacation\Command\ConfirmCancellationsCommand</command>
+    </commands>
+    <settings>
+        <admin-section>OCA\NextcloudVacation\Settings\Section</admin-section>
+        <admin>OCA\NextcloudVacation\Settings\Admin</admin>
+    </settings>
+</info>

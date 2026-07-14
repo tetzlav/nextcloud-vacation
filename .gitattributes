@@ -1,0 +1,3 @@
+* text=auto
+bin/status-vacation-report text eol=lf
+bin/deploy-nextcloud text eol=lf

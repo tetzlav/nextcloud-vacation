@@ -1,0 +1,678 @@
+#app-content {
+    background-color: var(--color-main-background);
+    min-height: 100%;
+}
+
+#app-navigation,
+#nextcloud-vacation {
+    --vacation-font-size-title: 24px;
+    --vacation-font-size-section: 20px;
+    --vacation-font-size-body: 14px;
+    --vacation-font-size-small: 12px;
+    font-size: var(--vacation-font-size-body);
+    line-height: 1.4;
+}
+
+.vacation-page {
+    max-width: 1280px;
+    padding: 28px 32px;
+}
+
+.vacation-header {
+    margin-bottom: 18px;
+}
+
+.vacation-header h2 {
+    font-size: var(--vacation-font-size-title);
+    line-height: 1.2;
+    margin: 0 0 4px;
+}
+
+.vacation-header p {
+    color: var(--color-text-maxcontrast);
+    margin: 0;
+}
+
+.vacation-header .debug-action-result {
+    color: var(--color-warning);
+    font-family: monospace;
+    font-size: var(--vacation-font-size-small);
+    margin-top: 6px;
+}
+
+.vacation-period {
+    border-top: 1px solid var(--color-border);
+    height: auto;
+    margin-top: 16px;
+    padding-top: 12px;
+}
+
+.vacation-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.vacation-pdf-button {
+    align-self: start;
+    display: inline-flex;
+    font-size: var(--vacation-font-size-body);
+    min-height: 28px;
+    padding: 3px 10px;
+    vertical-align: middle;
+}
+
+.period-overview {
+    align-items: start;
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.period-overview > details {
+    min-width: 0;
+}
+
+.vacation-view-entry {
+    margin: 4px 8px;
+}
+
+.vacation-view-entry a {
+    align-items: center;
+    border-radius: var(--border-radius-large);
+    color: var(--color-main-text);
+    display: flex;
+    font-size: var(--vacation-font-size-body);
+    min-height: 44px;
+    padding: 0 12px;
+    text-decoration: none;
+}
+
+.vacation-view-entry a:hover {
+    background-color: var(--color-background-hover);
+}
+
+.vacation-view-entry.active a {
+    background-color: var(--color-primary-element);
+    color: var(--color-primary-element-text);
+    font-weight: 600;
+}
+
+.vacation-period-content {
+    padding: 16px;
+    width: 100%;
+}
+
+.vacation-period-content h3 {
+    font-size: var(--vacation-font-size-body);
+    line-height: 1.4;
+    margin: 0 0 16px;
+}
+
+.vacation-period-content label,
+.vacation-period-content select,
+#nextcloud-vacation button,
+#nextcloud-vacation .button {
+    font-size: var(--vacation-font-size-body);
+}
+
+.vacation-year-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vacation-year-form input,
+.vacation-year-form select {
+    width: 100%;
+}
+
+.vacation-year-form button {
+    width: 100%;
+}
+
+.vacation-meta {
+    color: var(--color-text-maxcontrast);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-bottom: 16px;
+}
+
+.vacation-bulk-actions {
+    display: inline-block;
+    margin: 0 8px 16px 0;
+}
+
+.vacation-bulk-actions button {
+    min-height: 32px;
+}
+
+.vacation-table {
+    background: var(--color-main-background);
+    border-collapse: collapse;
+    min-width: 760px;
+    width: 100%;
+}
+
+.vacation-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.vacation-help {
+    border-top: 1px solid var(--color-border);
+    margin-top: 28px;
+    padding-top: 20px;
+}
+
+.vacation-help-heading {
+    align-items: start;
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+}
+
+.vacation-help-heading h3,
+.vacation-help h4 {
+    margin: 0;
+}
+
+.vacation-help-heading h3 {
+    font-size: var(--vacation-font-size-section);
+    line-height: 1.25;
+}
+
+.vacation-help-heading p {
+    color: var(--color-text-maxcontrast);
+    margin: 3px 0 0;
+}
+
+.vacation-calendar-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.vacation-help-grid {
+    display: grid;
+    gap: 20px 28px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 18px;
+}
+
+.vacation-help-grid h4 {
+    font-size: var(--vacation-font-size-body);
+    line-height: 1.4;
+}
+
+.vacation-help-grid p {
+    line-height: 1.45;
+    margin: 6px 0 0;
+}
+
+.vacation-help-note {
+    color: var(--color-text-maxcontrast);
+    white-space: nowrap;
+}
+
+.vacation-approval-note {
+    border-inline-start: 3px solid var(--color-primary-element);
+    margin: 18px 0 0;
+    padding-inline-start: 10px;
+}
+
+.vacation-help code {
+    background: var(--color-background-dark);
+    border-radius: 3px;
+    padding: 1px 4px;
+    white-space: nowrap;
+}
+
+.vacation-table th,
+.vacation-table td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 10px 8px;
+    font-size: var(--vacation-font-size-body);
+    text-align: start;
+    vertical-align: top;
+}
+
+.vacation-col-user {
+    width: 260px;
+}
+
+.vacation-col-balance {
+    width: 180px;
+}
+
+.vacation-col-periods {
+    width: auto;
+}
+
+.vacation-table th:nth-child(2),
+.vacation-table td:nth-child(2) {
+    font-variant-numeric: tabular-nums;
+    text-align: start;
+}
+
+.vacation-table td span {
+    color: var(--color-text-maxcontrast);
+    display: block;
+    font-size: var(--vacation-font-size-small);
+    margin-top: 2px;
+}
+
+.vacation-table .missing-calendar {
+    color: var(--color-text-maxcontrast);
+}
+
+.negative-days {
+    color: var(--color-error);
+    font-weight: 700;
+}
+
+.vacation-table .debug-row td {
+    background-color: var(--color-background-hover);
+    font-size: var(--vacation-font-size-small);
+    padding-inline-start: 24px;
+}
+
+.vacation-table details {
+    margin: 6px 0;
+}
+
+.vacation-table summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    list-style-type: none;
+}
+
+.vacation-table summary::marker {
+    content: '';
+    font-size: 0;
+}
+
+.vacation-table summary::-webkit-details-marker {
+    display: none;
+}
+
+.vacation-table .day-ranges {
+    margin: 0;
+    max-width: 100%;
+}
+
+.vacation-table .day-ranges summary {
+    font-weight: 400;
+}
+
+.vacation-table .day-ranges > summary::before {
+    border-block: 4px solid transparent;
+    border-inline-end: 0;
+    border-inline-start: 6px solid var(--color-main-text);
+    content: '';
+    display: inline-block;
+    height: 0;
+    margin-inline-end: 8px;
+    width: 0;
+}
+
+.vacation-table .day-ranges[open] > summary::before {
+    border-block-end: 0;
+    border-block-start: 6px solid var(--color-main-text);
+    border-inline: 4px solid transparent;
+}
+
+.vacation-table .day-ranges div {
+    color: var(--color-text-maxcontrast);
+    margin-top: 6px;
+}
+
+.vacation-table .day-ranges[open] > div {
+    padding-inline-start: 18px;
+}
+
+.vacation-balance strong {
+    display: block;
+    font-size: var(--vacation-font-size-body);
+    margin-bottom: 3px;
+    white-space: nowrap;
+}
+
+.entitlement-details {
+    color: var(--color-text-maxcontrast);
+    font-size: var(--vacation-font-size-small);
+}
+
+.entitlement-summary {
+    color: var(--color-text-maxcontrast);
+    font-size: var(--vacation-font-size-small);
+}
+
+.carryover-expiry {
+    color: var(--color-warning);
+    font-size: var(--vacation-font-size-small);
+    font-weight: 600;
+}
+
+.carryover-expired {
+    color: var(--color-error);
+}
+
+.entitlement-details summary {
+    font-weight: 400;
+}
+
+.entitlement-details[open] > .carryover-form {
+    padding-inline-start: 18px;
+}
+
+.user-periods > summary {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    min-height: 24px;
+}
+
+.user-periods > summary::before {
+    border-block: 4px solid transparent;
+    border-inline-end: 0;
+    border-inline-start: 6px solid var(--color-main-text);
+    content: '';
+    display: inline-block;
+    height: 0;
+    width: 0;
+}
+
+.user-periods[open] > summary::before {
+    border-block-end: 0;
+    border-block-start: 6px solid var(--color-main-text);
+    border-inline: 4px solid transparent;
+}
+
+.user-periods > summary span {
+    color: var(--color-warning);
+    display: inline;
+    font-size: var(--vacation-font-size-small);
+    margin: 0;
+}
+
+.period-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.user-periods[open] > .period-list {
+    padding-inline-start: 18px;
+}
+
+.period-row {
+    margin: 0;
+    min-height: 34px;
+    position: relative;
+}
+
+.vacation-table td span.period-status-marker {
+    align-items: center;
+    border-radius: 999px;
+    color: #fff;
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 700;
+    height: 18px;
+    justify-content: center;
+    line-height: 1;
+    margin-inline-start: 8px;
+    margin-top: 0;
+    vertical-align: middle;
+    width: 18px;
+}
+
+.vacation-table td span.period-status-marker.approval-pending-approval {
+    background: var(--color-primary-element);
+}
+
+.vacation-table td span.period-status-marker.approval-pending-detection,
+.vacation-table td span.period-status-marker.approval-unknown {
+    background: var(--color-warning);
+}
+
+.vacation-table td span.period-status-marker.approval-approved {
+    background: var(--color-success);
+}
+
+.vacation-table td span.period-status-marker.approval-rejected,
+.vacation-table td span.period-status-marker.approval-changed-after-approval,
+.vacation-table td span.period-status-marker.approval-cancellation-pending,
+.vacation-table td span.period-status-marker.approval-approved-missing,
+.vacation-table td span.period-status-marker.approval-cancelled {
+    background: var(--color-error);
+}
+
+.period-row.approval-rejected .day-ranges > summary,
+.period-row.approval-changed-after-approval .day-ranges > summary,
+.period-row.approval-cancellation-pending .day-ranges > summary,
+.period-row.approval-approved-missing .day-ranges > summary,
+.period-row.approval-cancelled .day-ranges > summary {
+    text-decoration: underline;
+    text-decoration-color: var(--color-error);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+}
+
+.vacation-table td span.period-day-count {
+    color: var(--color-text-maxcontrast);
+    display: inline;
+    font-size: inherit;
+    font-weight: inherit;
+    margin-top: 0;
+}
+
+@media (max-width: 720px) {
+    .vacation-page {
+        padding: 20px 16px;
+    }
+
+    .vacation-header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .vacation-pdf-button {
+        align-self: flex-start;
+    }
+
+    .period-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .vacation-help-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .vacation-calendar-link {
+        align-self: start;
+    }
+
+    .vacation-help-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.approval-state {
+    align-items: center;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, max-content) auto auto;
+    margin: 6px 0 0;
+    padding-inline-start: 12px;
+}
+
+.approval-state .approval-label {
+    color: var(--color-main-text);
+    display: block;
+    font-size: var(--vacation-font-size-body);
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.approval-state form {
+    margin: 0;
+}
+
+.vacation-table .approval-integrity {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+
+.approval-integrity > summary {
+    color: var(--color-text-maxcontrast);
+    font-size: var(--vacation-font-size-small);
+    font-weight: 600;
+}
+
+.approval-integrity-content {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-top: 5px;
+    padding-inline-start: 12px;
+}
+
+.approval-integrity-content code {
+    color: var(--color-text-maxcontrast);
+    font-family: monospace;
+    font-size: var(--vacation-font-size-small);
+    overflow-wrap: anywhere;
+}
+
+.approval-hash-copy {
+    font-size: var(--vacation-font-size-small);
+    min-height: 28px;
+    padding: 3px 9px;
+}
+
+.rejection-reason {
+    grid-column: 1 / -1;
+}
+
+.rejection-form {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+}
+
+.rejection-form input {
+    min-height: 30px;
+    width: 160px;
+}
+
+.approval-button {
+    min-height: 30px;
+    padding: 4px 10px;
+    white-space: nowrap;
+}
+
+.reject-button {
+    background-color: var(--color-error);
+    color: #fff;
+    min-height: 30px;
+    padding: 4px 10px;
+    white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+    .approval-state {
+        grid-template-columns: minmax(0, max-content);
+    }
+
+    .approval-state form,
+    .rejection-reason {
+        grid-column: 1;
+    }
+}
+
+.debug-section {
+    margin: 0 0 10px;
+}
+
+.debug-section > summary,
+.debug-event-group > summary,
+.debug-raw-events > summary {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+.debug-section > summary::before,
+.debug-event-group > summary::before,
+.debug-raw-events > summary::before {
+    border-block: 4px solid transparent;
+    border-inline-end: 0;
+    border-inline-start: 6px solid var(--color-main-text);
+    content: '';
+    display: inline-block;
+    flex: 0 0 auto;
+    height: 0;
+    width: 0;
+}
+
+.debug-section[open] > summary::before,
+.debug-event-group[open] > summary::before,
+.debug-raw-events[open] > summary::before {
+    border-block-end: 0;
+    border-block-start: 6px solid var(--color-main-text);
+    border-inline: 4px solid transparent;
+}
+
+.debug-section-content {
+    margin-block: 6px 0;
+    margin-inline: 18px 0;
+}
+
+.debug-event-group {
+    margin: 5px 0;
+}
+
+.debug-raw-events {
+    margin-block: 4px 0;
+    margin-inline: 18px 0;
+}
+
+.debug-event-deleted .debug-event-group > summary,
+.debug-event-deleted .debug-raw-events div {
+    color: var(--color-text-maxcontrast);
+    text-decoration: line-through;
+}
+
+.carryover-form {
+    align-items: end;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, max-content) max-content;
+    margin: 8px 0 0;
+}
+
+.carryover-form label {
+    display: grid;
+    gap: 3px;
+}
+
+.carryover-form input {
+    max-width: 64px;
+    min-height: 30px;
+}
+
+.carryover-button {
+    font-size: var(--vacation-font-size-body);
+    font-weight: 700;
+    min-height: 30px;
+    min-width: 34px;
+    padding: 4px 8px;
+}
