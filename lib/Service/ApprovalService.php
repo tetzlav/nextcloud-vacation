@@ -650,13 +650,19 @@ class ApprovalService
         $existing = $this->requestByFingerprint($fingerprint);
         $dayListJson = json_encode($days, JSON_THROW_ON_ERROR);
         $daysCountHundredths = $this->dayValuesToHundredths($days);
-        $notifyDuplicate = $duplicateConflict && !$this->hasNotifiedDuplicateOverlap(
-            $userId,
-            $year,
-            $start,
-            $end,
-            $existing === null ? 0 : (int)$existing['id']
-        );
+        $notifyDuplicate = $duplicateConflict
+            && (
+                $existing === null
+                || (string)$existing['status'] !== self::STATUS_DUPLICATE_CONFLICT
+                || (int)($existing['notified_at'] ?? 0) === 0
+            )
+            && !$this->hasNotifiedDuplicateOverlap(
+                $userId,
+                $year,
+                $start,
+                $end,
+                $existing === null ? 0 : (int)$existing['id']
+            );
 
         if ($existing === null) {
             $qb = $this->db->getQueryBuilder();
@@ -703,8 +709,15 @@ class ApprovalService
                 $qb = $this->db->getQueryBuilder();
                 $qb->update('vacation_requests')
                     ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->set('notified_at', $qb->createNamedParameter(
+                        $notifyDuplicate ? $now : (int)($existing['notified_at'] ?? 0),
+                        IQueryBuilder::PARAM_INT
+                    ))
                     ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
                 $qb->executeStatement();
+                if ($notifyDuplicate) {
+                    $this->notifyRequesterDuplicateConflict($existing);
+                }
                 return;
             }
 
