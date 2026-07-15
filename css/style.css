@@ -542,22 +542,25 @@
 .approval-integrity-content {
     align-items: center;
     display: flex;
-    flex-wrap: wrap;
     gap: 6px 10px;
     margin-top: 5px;
+    max-width: 100%;
     padding-inline-start: 12px;
 }
 
 .approval-integrity-content code {
     color: var(--color-text-maxcontrast);
+    flex: 0 1 auto;
     font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, monospace;
     font-size: var(--vacation-font-size-small);
+    min-width: 0;
     overflow-wrap: anywhere;
 }
 
 .approval-hash-copy {
     align-items: center;
     display: inline-flex;
+    flex: 0 0 auto;
     justify-content: center;
     min-height: 28px;
     min-width: 28px;
