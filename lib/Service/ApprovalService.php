@@ -116,6 +116,43 @@ class ApprovalService
         return $this->config->getAppValue(Application::APP_ID, 'employee_notifications_enabled', '1') === '1';
     }
 
+    public function notifySpecialLeavePosted(array $entry): void
+    {
+        if (!$this->employeeNotificationsEnabled()) {
+            return;
+        }
+
+        $userId = (string)$entry['user_id'];
+        $user = $this->userManager->get($userId);
+        if ($user === null || $user->getEMailAddress() === null) {
+            return;
+        }
+
+        $grantorId = (string)$entry['granted_by'];
+        $grantor = $this->userManager->get($grantorId);
+        $grantorName = $grantor === null ? $grantorId : ($grantor->getDisplayName() ?: $grantorId);
+        $l = $this->l10nForUser($user);
+        $postedAt = $this->formatMailTimestamp((int)$entry['granted_at'], $userId, $l);
+        $amount = (int)$entry['amount_hundredths'] / 100;
+
+        $this->sendMail(
+            [$user->getEMailAddress() => $user->getDisplayName() ?: $userId],
+            $l->t('Special leave posted'),
+            $l->t(
+                "A special leave entry was posted to your vacation account.\n\nYear: %1\$s\nDays: %2\$s\nReason: %3\$s\nPosted by: %4\$s\nPosted at: %5\$s\n\n%6\$s",
+                [
+                    (string)$entry['year'],
+                    $this->formatDayAmount($amount, $userId),
+                    (string)$entry['reason'],
+                    $grantorName,
+                    $postedAt,
+                    $this->personalAppUrl($entry),
+                ]
+            ),
+            self::MAIL_KIND_EMPLOYEE
+        );
+    }
+
     public function autoApprovalGroups(): array
     {
         return $this->csvConfig($this->config->getAppValue(Application::APP_ID, 'auto_approval_groups', ''));

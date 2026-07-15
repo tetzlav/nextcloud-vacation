@@ -27,6 +27,8 @@ $e = static fn (mixed $value): string => htmlspecialchars((string)$value, ENT_QU
         .ledger .period td { font-weight: normal; }
         .ledger tr { page-break-inside: avoid; }
         .ledger .period .description { padding-left: 2mm; white-space: nowrap; }
+        .ledger .special-leave-row .description span { display: block; }
+        .ledger .special-leave-row .special-leave-reason { font-weight: normal; }
         .approval-line { display: block; font-size: 7pt; line-height: 1.15; }
         .approval-hash { font-family: "DejaVu Sans Mono", monospace; font-size: 4.2pt; line-height: 1.1; white-space: nowrap; }
         .ledger .totals td { border-top: 0.65mm solid #111; font-weight: bold; }
@@ -72,6 +74,22 @@ $e = static fn (mixed $value): string => htmlspecialchars((string)$value, ENT_QU
                 <td class="approval"></td>
                 <td class="number balance"></td>
             </tr>
+            <?php foreach ($data['specialLeaveEntries'] as $entry): ?>
+                <tr class="special-leave-row">
+                    <td class="description">
+                        <span><?php echo $e($l->t('Special leave')); ?></span>
+                        <span class="special-leave-reason"><?php echo $e($entry['reason']); ?></span>
+                    </td>
+                    <td class="number"><?php echo $e($amount((float)$entry['amount'])); ?></td>
+                    <td class="number debit"></td>
+                    <td class="approval">
+                        <?php foreach ($entry['postingLines'] as $line): ?>
+                            <span class="approval-line<?php echo str_starts_with($line, 'SHA-256 ') ? ' approval-hash' : ''; ?>"><?php echo $e($line); ?></span>
+                        <?php endforeach; ?>
+                    </td>
+                    <td class="number balance"></td>
+                </tr>
+            <?php endforeach; ?>
             <?php foreach ($data['periods'] as $period): ?>
                 <tr class="period">
                     <td class="description"><?php echo $e($period['label']); ?></td>

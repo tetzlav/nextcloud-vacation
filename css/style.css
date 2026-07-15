@@ -678,3 +678,61 @@
     min-width: 34px;
     padding: 4px 8px;
 }
+
+.special-leave-journal {
+    border-block-start: 1px solid var(--color-border);
+    display: grid;
+    gap: 6px;
+    margin-block-start: 10px;
+    padding-block-start: 8px;
+    width: 190px;
+}
+
+.special-leave-entry {
+    border-inline-start: 2px solid var(--color-primary-element);
+    padding-inline-start: 6px;
+}
+
+.special-leave-entry span,
+.special-leave-entry small,
+.special-leave-journal > small {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.special-leave-form {
+    align-items: end;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: 64px 34px;
+}
+
+.special-leave-form label {
+    display: grid;
+    gap: 3px;
+}
+
+.special-leave-form .special-leave-reason {
+    grid-column: 1 / -1;
+    grid-row: 1;
+}
+
+.special-leave-form .special-leave-reason input {
+    width: 190px;
+}
+
+.special-leave-form input {
+    min-height: 30px;
+}
+
+.special-leave-result {
+    font-weight: 600;
+}
+
+.special-leave-success {
+    color: var(--color-success);
+}
+
+.special-leave-error {
+    color: var(--color-error);
+}

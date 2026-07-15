@@ -11,6 +11,7 @@ return [
         ['name' => 'approval#confirm_cancellation', 'url' => '/cancel/{id}', 'verb' => 'POST'],
         ['name' => 'approval#keep_booking', 'url' => '/keep/{id}', 'verb' => 'POST'],
         ['name' => 'carryover#save', 'url' => '/carryover', 'verb' => 'POST'],
+        ['name' => 'special_leave#grant', 'url' => '/special-leave', 'verb' => 'POST'],
         ['name' => 'admin_settings#save', 'url' => '/settings/admin', 'verb' => 'POST'],
     ],
 ];

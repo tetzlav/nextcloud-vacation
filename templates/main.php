@@ -8,6 +8,7 @@ $rejectUrlTemplate = $_['rejectUrlTemplate'];
 $confirmCancellationUrlTemplate = $_['confirmCancellationUrlTemplate'];
 $keepBookingUrlTemplate = $_['keepBookingUrlTemplate'];
 $carryoverSaveUrl = $_['carryoverSaveUrl'];
+$specialLeaveUrl = $_['specialLeaveUrl'];
 $requestToken = $_['requesttoken'] ?? '';
 $activeActionId = max((int)$_['approvedId'], (int)$_['rejectedId'], (int)$_['cancellationId']);
 $localeCode = method_exists($l, 'getLocaleCode') ? (string)$l->getLocaleCode() : 'en';
@@ -289,7 +290,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
         <?php if ($_['canManageApprovals']): ?>
             <li class="vacation-view-entry <?php if ($_['approvalOverview']) { print_unescaped('active'); } ?>">
                 <a href="<?php p($_['approvalsUrl']); ?>" <?php if ($_['approvalOverview']) { print_unescaped('aria-current="page"'); } ?>>
-                    <span><?php p($l->t('Approvals')); ?></span>
+                    <span><?php p($l->t('Vacation management')); ?></span>
                 </a>
             </li>
         <?php endif; ?>
@@ -318,7 +319,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
             <div>
             <h2>
                 <?php if ($_['approvalOverview']): ?>
-                    <?php p($l->t('Approvals %s', [$_['year']])); ?>
+                    <?php p($l->t('Vacation management %s', [$_['year']])); ?>
                 <?php else: ?>
                     <?php p($l->t('Vacation days %s', [$_['year']])); ?>
                 <?php endif; ?>
@@ -417,10 +418,11 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                         <td class="vacation-balance <?php p($row['remainingDays'] < 0 ? 'negative-days' : ''); ?>">
                             <strong title="<?php p($l->t('Taken: %s, entitlement: %s, remaining: %s', [$formatDayAmount((float)$row['vacationDays']), $formatDayAmount((float)$row['entitlement']), $formatDayAmount((float)$row['remainingDays'])])); ?>"><?php p($formatDayAmount((float)$row['vacationDays'])); ?> / <?php p($formatDayAmount((float)$row['entitlement'])); ?> (<?php p($formatDayAmount((float)$row['remainingDays'])); ?>) <?php p($l->t('days')); ?></strong>
                             <?php if ($_['isAdmin']): ?>
-                                <details class="entitlement-details">
+                                <details class="entitlement-details" <?php if ((string)$_['openUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== '') { print_unescaped('open'); } ?>>
                                     <summary>
                                         <?php p($formatDayAmount((float)$row['baseEntitlement'])); ?>
                                         + <?php p($formatDayAmount((float)$row['effectiveCarryover'])); ?> <?php p($l->t('Carryover')); ?>
+                                        <?php p((float)$row['specialLeave'] < 0 ? '-' : '+'); ?> <?php p($formatDayAmount(abs((float)$row['specialLeave']))); ?> <?php p($l->t('Special leave')); ?>
                                     </summary>
                                     <form method="post" action="<?php p($carryoverSaveUrl); ?>" class="carryover-form">
                                         <?php if ($requestToken !== ''): ?>
@@ -438,6 +440,38 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         </label>
                                         <button type="submit" class="carryover-button" title="<?php p($l->t('Save')); ?>" aria-label="<?php p($l->t('Save')); ?>">&#10003;</button>
                                     </form>
+                                    <div class="special-leave-journal">
+                                        <strong><?php p($l->t('Special leave')); ?></strong>
+                                        <?php foreach ($row['specialLeaveEntries'] as $entry): ?>
+                                            <div class="special-leave-entry" title="SHA-256 <?php p($entry['entry_hash']); ?>">
+                                                <span><?php p($formatDayAmount((float)$entry['amount'])); ?> <?php p($dayUnit((float)$entry['amount'])); ?> &middot; <?php p($entry['reason']); ?></span>
+                                                <small><?php p($l->t('Posted on %1$s by %2$s', [$formatTimestamp((int)$entry['granted_at']), $entry['grantedDisplayName']])); ?></small>
+                                            </div>
+                                        <?php endforeach; ?>
+                                        <?php if (count($row['specialLeaveEntries']) === 0): ?>
+                                            <small><?php p($l->t('No special leave entries')); ?></small>
+                                        <?php endif; ?>
+                                        <form method="post" action="<?php p($specialLeaveUrl); ?>" class="special-leave-form">
+                                            <?php if ($requestToken !== ''): ?><input type="hidden" name="requesttoken" value="<?php p($requestToken); ?>"><?php endif; ?>
+                                            <input type="hidden" name="year" value="<?php p($_['year']); ?>">
+                                            <input type="hidden" name="user_id" value="<?php p($row['userId']); ?>">
+                                            <label>
+                                                <?php p($l->t('Amount in days')); ?>
+                                                <input type="text" name="amount" inputmode="decimal" placeholder="1" required>
+                                            </label>
+                                            <label class="special-leave-reason">
+                                                <?php p($l->t('Reason')); ?>
+                                                <input type="text" name="reason" maxlength="255" required>
+                                            </label>
+                                            <button type="submit" class="carryover-button" title="<?php p($l->t('Post special leave')); ?>" aria-label="<?php p($l->t('Post special leave')); ?>">&#10003;</button>
+                                        </form>
+                                        <small><?php p($l->t('Use a negative amount to correct an earlier entry.')); ?></small>
+                                        <?php if ((string)$_['openUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== ''): ?>
+                                            <span class="special-leave-result <?php p($_['specialLeaveResult'] === 'added' ? 'special-leave-success' : 'special-leave-error'); ?>">
+                                                <?php p($_['specialLeaveResult'] === 'added' ? $l->t('Special leave posted') : $l->t('Special leave could not be posted')); ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                 </details>
                                 <?php if ((float)$row['expiredCarryover'] > 0.0): ?>
                                     <span class="carryover-expiry carryover-expired">
@@ -445,7 +479,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                     </span>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <span class="entitlement-summary"><?php p($formatDayAmount((float)$row['baseEntitlement'])); ?> + <?php p($formatDayAmount((float)$row['effectiveCarryover'])); ?> <?php p($l->t('Carryover')); ?></span>
+                                <span class="entitlement-summary"><?php p($formatDayAmount((float)$row['baseEntitlement'])); ?> + <?php p($formatDayAmount((float)$row['effectiveCarryover'])); ?> <?php p($l->t('Carryover')); ?> <?php p((float)$row['specialLeave'] < 0 ? '-' : '+'); ?> <?php p($formatDayAmount(abs((float)$row['specialLeave']))); ?> <?php p($l->t('Special leave')); ?></span>
                                 <?php if ($carryoverExpiryLabel !== ''): ?>
                                     <span class="carryover-expiry <?php p(!$row['carryoverAvailable'] ? 'carryover-expired' : ''); ?>">
                                         <?php p($carryoverExpiryLabel); ?>

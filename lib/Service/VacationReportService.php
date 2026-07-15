@@ -34,7 +34,8 @@ class VacationReportService
         private ICalendarManager $calendarManager,
         private IConfig $config,
         private IGroupManager $groupManager,
-        private IUserManager $userManager
+        private IUserManager $userManager,
+        private SpecialLeaveService $specialLeaveService
     ) {
     }
 
@@ -94,6 +95,7 @@ class VacationReportService
         $to = new DateTimeImmutable(($year + 1) . '-01-01', $timezone);
         $globalEntitlement = $this->vacationEntitlement();
         $personalEntitlements = $this->personalEntitlementsForYear($year);
+        $specialLeavesByUser = $this->specialLeaveService->entriesByUserForYear($year);
         $carryovers = $this->carryoversForYear($year);
         $automaticCarryovers = $includeAutomaticCarryover
             ? $this->automaticCarryoversForYear($userIds, $year, $carryovers)
@@ -217,6 +219,11 @@ class VacationReportService
                 ? $this->hundredthsToFloat($personalEntitlements[$userId])
                 : null;
             $baseEntitlement = $personalEntitlement ?? $globalEntitlement;
+            $specialLeaveEntries = $specialLeavesByUser[$userId] ?? [];
+            $specialLeave = array_sum(array_map(
+                static fn (array $entry): float => (float)$entry['amount'],
+                $specialLeaveEntries
+            ));
             $carryoverSource = 'none';
             $carryoverHundredths = 0;
             if (isset($carryovers[$userId])) {
@@ -238,7 +245,7 @@ class VacationReportService
             $usedCarryover = min($carryover, (float)$vacationThroughCarryoverExpiry);
             $effectiveCarryover = $carryoverAvailable ? $carryover : $usedCarryover;
             $expiredCarryover = $carryoverAvailable ? 0.0 : max(0.0, $carryover - $usedCarryover);
-            $entitlement = $baseEntitlement + $effectiveCarryover;
+            $entitlement = $baseEntitlement + $effectiveCarryover + $specialLeave;
             $vacationDays = array_sum($dayValues);
 
             $report[] = [
@@ -250,6 +257,8 @@ class VacationReportService
                 'globalEntitlement' => $globalEntitlement,
                 'baseEntitlement' => $baseEntitlement,
                 'personalEntitlement' => $personalEntitlement,
+                'specialLeave' => $specialLeave,
+                'specialLeaveEntries' => $specialLeaveEntries,
                 'carryover' => $carryover,
                 'effectiveCarryover' => $effectiveCarryover,
                 'usedCarryover' => $usedCarryover,
@@ -458,8 +467,18 @@ class VacationReportService
                 continue;
             }
 
-            $vacationChargedToBase = max(0.0, (float)$row['vacationDays'] - (float)$row['effectiveCarryover']);
-            $remainingHundredths = (int)round(max(0.0, (float)$row['baseEntitlement'] - $vacationChargedToBase) * 100);
+            // Consume special leave before annual entitlement so it never becomes carryover.
+            $vacationChargedToBase = max(
+                0.0,
+                (float)$row['vacationDays']
+                    - (float)$row['effectiveCarryover']
+                    - max(0.0, (float)($row['specialLeave'] ?? 0.0))
+            );
+            $baseAvailableForCarryover = max(
+                0.0,
+                (float)$row['baseEntitlement'] + min(0.0, (float)($row['specialLeave'] ?? 0.0))
+            );
+            $remainingHundredths = (int)round(max(0.0, $baseAvailableForCarryover - $vacationChargedToBase) * 100);
             if ($remainingHundredths > 0) {
                 $carryovers[(string)$row['userId']] = $remainingHundredths;
             }

@@ -88,6 +88,7 @@ class PageController extends Controller
             'approvedId' => (int)$this->request->getParam('approved_id', 0),
             'rejectedId' => (int)$this->request->getParam('rejected_id', 0),
             'cancellationId' => (int)$this->request->getParam('cancellation_id', 0),
+            'specialLeaveResult' => (string)$this->request->getParam('special_leave_result', ''),
             'openUserId' => (string)$this->request->getParam('open_user_id', ''),
             'isAdmin' => $approvalOverview,
             'approvalOverview' => $approvalOverview,
@@ -109,6 +110,7 @@ class PageController extends Controller
             'confirmCancellationUrlTemplate' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approval.confirm_cancellation', ['id' => '__REQUEST_ID__']),
             'keepBookingUrlTemplate' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approval.keep_booking', ['id' => '__REQUEST_ID__']),
             'carryoverSaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.carryover.save'),
+            'specialLeaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.special_leave.grant'),
             'calendarNewEventUrl' => $this->urlGenerator->linkToRoute('calendar.view.indexdirect.new'),
             'pdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.pdf.download', ['year' => $year]),
         ]);

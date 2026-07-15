@@ -45,16 +45,25 @@ class VacationPdfService
 
         $baseEntitlement = (float)$row['baseEntitlement'];
         $carryover = (float)$row['carryover'];
+        $specialLeave = (float)($row['specialLeave'] ?? 0.0);
         $expiredCarryover = (float)$row['expiredCarryover'];
+        $specialLeaveEntries = array_map(
+            fn (array $entry): array => $entry + [
+                'postingLines' => $this->specialLeavePostingLines($entry, $timeZone),
+            ],
+            $row['specialLeaveEntries'] ?? []
+        );
         $data = [
             'year' => $year,
             'displayName' => (string)$row['displayName'],
             'logo' => $this->logoService->dataUri(),
             'baseEntitlement' => $baseEntitlement,
             'carryover' => $carryover,
+            'specialLeave' => $specialLeave,
+            'specialLeaveEntries' => $specialLeaveEntries,
             'expiredCarryover' => $expiredCarryover,
             'periods' => $periods,
-            'totalCredits' => $baseEntitlement + $carryover,
+            'totalCredits' => $baseEntitlement + $carryover + $specialLeave,
             'totalDebits' => (float)$row['vacationDays'] + $expiredCarryover,
             'remaining' => (float)$row['remainingDays'],
             'generatedAt' => $this->l10n->l('date', time()),
@@ -128,6 +137,17 @@ class VacationPdfService
         $decimal = str_starts_with($locale, 'de') ? ',' : '.';
         $formatted = number_format($value, 2, $decimal, '');
         return rtrim(rtrim($formatted, '0'), $decimal);
+    }
+
+    private function specialLeavePostingLines(array $entry, string $timeZone): array
+    {
+        $postedAt = (new DateTimeImmutable('@' . (int)$entry['granted_at']))
+            ->setTimezone(new DateTimeZone($timeZone));
+        return [
+            $this->l10n->t('Credited on %s', [$this->date($postedAt->format('Y-m-d'))]),
+            $this->l10n->t('by %s', [(string)$entry['grantedDisplayName']]),
+            'SHA-256 ' . (string)$entry['entry_hash'],
+        ];
     }
 
     private function approvalLines(mixed $approval, string $timeZone): array
