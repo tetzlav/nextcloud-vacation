@@ -267,6 +267,59 @@
     color: var(--color-text-maxcontrast);
 }
 
+.vacation-table .employee-approver-details {
+    margin: 0;
+}
+
+.employee-approver-details > summary {
+    cursor: pointer;
+    display: block;
+    min-height: 36px;
+    padding-inline-start: 16px;
+    position: relative;
+    width: 100%;
+}
+
+.employee-approver-details > summary::before {
+    border-block: 4px solid transparent;
+    border-inline-end: 0;
+    border-inline-start: 6px solid var(--color-main-text);
+    content: '';
+    display: inline-block;
+    height: 0;
+    inset-block-start: 6px;
+    inset-inline-start: 0;
+    position: absolute;
+    width: 0;
+}
+
+.employee-approver-details[open] > summary::before {
+    border-block-end: 0;
+    border-block-start: 6px solid var(--color-main-text);
+    border-inline: 4px solid transparent;
+}
+
+.employee-approver-form {
+    align-items: end;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 190px) 34px;
+    margin: 8px 0 0 18px;
+    width: 232px;
+}
+
+.employee-approver-form label {
+    display: grid;
+    font-size: var(--vacation-font-size-body);
+    font-weight: 600;
+    gap: 3px;
+}
+
+.employee-approver-form select {
+    min-width: 0;
+    width: 190px;
+}
+
 .negative-days {
     color: var(--color-error);
     font-weight: 700;
@@ -362,6 +415,34 @@
 
 .entitlement-details summary {
     font-weight: 400;
+}
+
+.entitlement-details > .entitlement-toggle {
+    cursor: pointer;
+    display: block;
+    min-height: 36px;
+    padding-inline-start: 16px;
+    position: relative;
+    width: 100%;
+}
+
+.entitlement-details > .entitlement-toggle::before {
+    border-block: 4px solid transparent;
+    border-inline-end: 0;
+    border-inline-start: 6px solid var(--color-main-text);
+    content: '';
+    display: inline-block;
+    height: 0;
+    inset-block-start: 6px;
+    inset-inline-start: 0;
+    position: absolute;
+    width: 0;
+}
+
+.entitlement-details[open] > .entitlement-toggle::before {
+    border-block-end: 0;
+    border-block-start: 6px solid var(--color-main-text);
+    border-inline: 4px solid transparent;
 }
 
 .entitlement-details[open] > .carryover-form,

@@ -2,6 +2,12 @@ OC.L10N.register(
     "nextcloud_vacation",
     {
         "Calendar: %s": "Kalender: %s",
+        "Assign personal approver": "Persönlichen Genehmiger zuweisen",
+        "Approver": "Genehmiger",
+        "Approver: %s": "Genehmiger: %s",
+        "Default approvers": "Standard-Genehmiger",
+        "Default: %s": "Standard: %s",
+        "Save approver": "Genehmiger speichern",
         "Request vacation": "Urlaub beantragen",
         "Create an all-day event and select the %s calendar in the editor.": "Einen ganztägigen Termin erstellen und im Editor den Kalender %s auswählen.",
         "Open new calendar event": "Neuen Kalendereintrag öffnen",

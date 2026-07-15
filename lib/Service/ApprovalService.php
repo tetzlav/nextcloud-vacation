@@ -48,7 +48,8 @@ class ApprovalService
         private IL10N $l,
         private IL10NFactory $l10nFactory,
         private VacationReportService $reportService,
-        private VacationRevisionService $revisionService
+        private VacationRevisionService $revisionService,
+        private EmployeeApproverService $employeeApproverService
     ) {
     }
 
@@ -1116,7 +1117,7 @@ class ApprovalService
 
     private function notifyApprovers(array $request): void
     {
-        foreach ($this->effectiveApproverUsers() as $userId => $displayName) {
+        foreach ($this->notificationApproverUsers($request) as $userId => $displayName) {
             $user = $this->userManager->get($userId);
             if ($user === null || $user->getEMailAddress() === null) {
                 continue;
@@ -1139,7 +1140,7 @@ class ApprovalService
             ? (string)$request['user_id']
             : ($requester->getDisplayName() ?: (string)$request['user_id']);
 
-        foreach ($this->effectiveApproverUsers() as $userId => $displayName) {
+        foreach ($this->notificationApproverUsers($request) as $userId => $displayName) {
             $user = $this->userManager->get($userId);
             if ($user === null || $user->getEMailAddress() === null) {
                 continue;
@@ -1192,7 +1193,7 @@ class ApprovalService
             );
         }
 
-        foreach ($this->effectiveApproverUsers() as $userId => $displayName) {
+        foreach ($this->notificationApproverUsers($request) as $userId => $displayName) {
             $user = $this->userManager->get($userId);
             if ($user === null || $user->getEMailAddress() === null) {
                 continue;
@@ -1658,7 +1659,8 @@ class ApprovalService
         );
     }
 
-    private function effectiveApproverUsers(): array
+    /** @return array<string, string> */
+    public function defaultApproverUsers(): array
     {
         $configured = $this->approverUsers();
         if (count($configured) === 0) {
@@ -1676,6 +1678,25 @@ class ApprovalService
         }
 
         return $users;
+    }
+
+    /** @return array<string, string> */
+    private function notificationApproverUsers(array $request): array
+    {
+        $employeeId = (string)($request['user_id'] ?? '');
+        $assignedApproverId = $employeeId === ''
+            ? null
+            : $this->employeeApproverService->assignedApproverId($employeeId);
+        if ($assignedApproverId === null) {
+            return $this->defaultApproverUsers();
+        }
+
+        $user = $this->userManager->get($assignedApproverId);
+        return [
+            $assignedApproverId => $user === null
+                ? $assignedApproverId
+                : ($user->getDisplayName() ?: $assignedApproverId),
+        ];
     }
 
     private function requestByFingerprint(string $fingerprint): ?array

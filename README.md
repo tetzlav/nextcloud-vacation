@@ -22,6 +22,7 @@ Backbone or legacy `OC.*` menu APIs. Database access uses the public query build
 - Counts weekdays whose summary, description, location or category contains `Urlaub` or `Vacation`. Half days are detected from the same `0,5`, `0.5`, optional `d`, and `1/2` forms before either word, for example `XY: 0.5d Vacation` or `XY: 1/2 Vacation`.
 - Shows vacation entitlement, carryover from the previous year, taken days and remaining days.
 - Lets calendar admins edit yearly carryover and optional per-user yearly entitlement inline; regular users see the entitlement composition without edit controls.
+- Lets calendar admins assign one personal approver per employee from the configured admin groups. The assignment controls notification routing only; every calendar admin keeps the existing management and approval permissions.
 - Lets calendar managers post immutable special-leave credits or correction entries per employee and year. Each entry records its reason, manager, timestamp, predecessor hash and SHA-256 hash.
 - Can calculate automatic carryover from the previous year when the employee had vacation activity and no manual carryover was configured.
 - Lets configured admins view all users from the configured staff group.
@@ -110,7 +111,7 @@ sudo -u nextcloud \
   /home/nextcloud/src/nextcloud_vacation/bin/deploy-nextcloud --upgrade
 ```
 
-Version `0.1.33` adds the append-only special-leave journal and requires one database migration. Version `0.1.32` adds immutable approval revisions, snapshot hashes and the `vacation:request` inspection command. Its migration creates the revision table and records existing currently approved bookings as revision `R1`. Version `0.1.31` removes the obsolete CLI prototype and its private Sabre/Guzzle stack to avoid conflicts with Nextcloud's bundled libraries; it does not add a database migration. Version `0.1.30` adds the PDF export, configurable PDF logo, PDF route and locked Composer dependencies; it does not add a database migration. Version `0.1.29` separates the personal overview from the protected approval overview; it does not add a migration. Version `0.1.24` adds an audit table and binding approved bookings. Version `0.1.23` adds mail queue categories so employee notifications can be skipped while approver notifications still work. Version `0.1.22` adds a database migration for the async mail queue. Version `0.1.21` adds a database migration for calendar-entry source keys on vacation requests. Version `0.1.20` adds a database migration for per-user entitlements and auto-approval metadata. Version `0.1.19` added a database migration for rejection metadata. Version `0.1.18` added a database migration for carryovers and half-day approval counts. After pulling a version with migrations, run `occ upgrade` once. For later ordinary code, template, CSS or translation fixes, no migration command is needed. Only run `occ upgrade`
+Version `0.1.34` adds per-employee approver assignments and requires one database migration. Version `0.1.33` adds the append-only special-leave journal and requires one database migration. Version `0.1.32` adds immutable approval revisions, snapshot hashes and the `vacation:request` inspection command. Its migration creates the revision table and records existing currently approved bookings as revision `R1`. Version `0.1.31` removes the obsolete CLI prototype and its private Sabre/Guzzle stack to avoid conflicts with Nextcloud's bundled libraries; it does not add a database migration. Version `0.1.30` adds the PDF export, configurable PDF logo, PDF route and locked Composer dependencies; it does not add a database migration. Version `0.1.29` separates the personal overview from the protected approval overview; it does not add a migration. Version `0.1.24` adds an audit table and binding approved bookings. Version `0.1.23` adds mail queue categories so employee notifications can be skipped while approver notifications still work. Version `0.1.22` adds a database migration for the async mail queue. Version `0.1.21` adds a database migration for calendar-entry source keys on vacation requests. Version `0.1.20` adds a database migration for per-user entitlements and auto-approval metadata. Version `0.1.19` added a database migration for rejection metadata. Version `0.1.18` added a database migration for carryovers and half-day approval counts. After pulling a version with migrations, run `occ upgrade` once. For later ordinary code, template, CSS or translation fixes, no migration command is needed. Only run `occ upgrade`
 deliberately when an update actually contains a new app migration. In the tested
 Nextcloud setup there is no per-app migration command, and `occ upgrade` can also
 update unrelated apps.
@@ -202,6 +203,14 @@ Once a period has stayed unchanged for the
 configured wait time, it becomes `pending_approval` and configured approvers receive
 an email with a link to the app. The requesting user also receives an email that the
 request is now waiting for approval.
+
+Calendar admins can expand an employee's name in **Vacation management** and assign a
+personal approver from the configured admin groups. When an assignment exists, approver
+notifications for new requests, missing approved calendar entries and confirmed
+cancellations are sent only to that user. Without an assignment, the global
+`approver_users` configuration remains the default; if it is empty, all eligible members
+of the configured admin groups remain the fallback. The assignment does not restrict who
+may open the management overview or perform approval actions.
 
 If the requesting user is in one of the configured `auto_approval_groups` or is listed
 in `auto_approval_users`, the period is approved automatically after the normal

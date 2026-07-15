@@ -5,7 +5,7 @@
     <name>Vacation</name>
     <summary>Vacation day reports from Status calendars</summary>
     <description>Shows used vacation days from users' Status calendars. Configured admins can approve vacation and see the staff overview.</description>
-    <version>0.1.33</version>
+    <version>0.1.34</version>
     <licence>mit</licence>
     <author mail="tetzlav@web.de">Alexander Tetzlav</author>
     <namespace>NextcloudVacation</namespace>

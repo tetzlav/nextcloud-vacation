@@ -8,6 +8,7 @@ use DateTimeZone;
 use Exception;
 use OCA\NextcloudVacation\AppInfo\Application;
 use OCA\NextcloudVacation\Service\ApprovalService;
+use OCA\NextcloudVacation\Service\EmployeeApproverService;
 use OCA\NextcloudVacation\Service\VacationReportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\RedirectResponse;
@@ -25,6 +26,7 @@ class PageController extends Controller
         IRequest $request,
         private VacationReportService $reportService,
         private ApprovalService $approvalService,
+        private EmployeeApproverService $employeeApproverService,
         private IURLGenerator $urlGenerator,
         private IConfig $config,
         private ?string $UserId
@@ -99,6 +101,7 @@ class PageController extends Controller
             'rejectedId' => (int)$this->request->getParam('rejected_id', 0),
             'cancellationId' => (int)$this->request->getParam('cancellation_id', 0),
             'specialLeaveResult' => (string)$this->request->getParam('special_leave_result', ''),
+            'approverResult' => (string)$this->request->getParam('approver_result', ''),
             'openUserId' => (string)$this->request->getParam('open_user_id', ''),
             'isAdmin' => $approvalOverview,
             'approvalOverview' => $approvalOverview,
@@ -121,6 +124,10 @@ class PageController extends Controller
             'keepBookingUrlTemplate' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approval.keep_booking', ['id' => '__REQUEST_ID__']),
             'carryoverSaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.carryover.save'),
             'specialLeaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.special_leave.grant'),
+            'approverAssignmentUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approver_assignment.save'),
+            'approverAssignments' => $approvalOverview ? $this->employeeApproverService->assignments() : [],
+            'approverCandidates' => $approvalOverview ? $this->employeeApproverService->candidates() : [],
+            'defaultApproverUsers' => $approvalOverview ? $this->approvalService->defaultApproverUsers() : [],
             'calendarNewEventUrl' => $this->urlGenerator->linkToRoute('calendar.view.indexdirect.new'),
             'pdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.pdf.download', ['year' => $year]),
             'pdfUrls' => $pdfUrls,
