@@ -61,6 +61,7 @@ class ApprovalService
 
         foreach ($years as $year) {
             foreach ($this->reportService->reportForStaff($year, false, false, false) as $row) {
+                $this->repairLegacyCompositeApproval((string)$row['userId'], $year, $row['dayRanges'], $now);
                 foreach ($row['dayRanges'] as $range) {
                     $days = isset($range['dayValues']) && is_array($range['dayValues'])
                         ? $range['dayValues']
@@ -786,6 +787,107 @@ class ApprovalService
             ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
         $qb->executeStatement();
+    }
+
+    private function repairLegacyCompositeApproval(string $userId, int $year, array $ranges, int $now): void
+    {
+        $handled = [];
+        foreach ($ranges as $range) {
+            $compositeSourceKey = (string)($range['legacyCompositeSourceKey'] ?? '');
+            $days = isset($range['dayValues']) && is_array($range['dayValues']) ? $range['dayValues'] : [];
+            ksort($days);
+            $handledKey = implode('|', [
+                $compositeSourceKey,
+                (string)$range['start'],
+                (string)$range['end'],
+                json_encode($days, JSON_THROW_ON_ERROR),
+            ]);
+            if ($compositeSourceKey === '' || isset($handled[$handledKey])) {
+                continue;
+            }
+            $handled[$handledKey] = true;
+
+            $compositeFingerprint = $this->fingerprint(
+                $userId,
+                $year,
+                (string)$range['start'],
+                (string)$range['end'],
+                $days,
+                $compositeSourceKey
+            );
+            $compositeRequest = $this->requestByFingerprint($compositeFingerprint);
+            if ($compositeRequest === null || (string)$compositeRequest['status'] !== self::STATUS_APPROVED) {
+                continue;
+            }
+
+            $candidates = array_values(array_filter($ranges, static function (array $candidate) use ($range, $compositeSourceKey, $days): bool {
+                $candidateDays = isset($candidate['dayValues']) && is_array($candidate['dayValues']) ? $candidate['dayValues'] : [];
+                ksort($candidateDays);
+                $expectedDays = $days;
+                ksort($expectedDays);
+
+                return (string)($candidate['legacyCompositeSourceKey'] ?? '') === $compositeSourceKey
+                    && (string)$candidate['start'] === (string)$range['start']
+                    && (string)$candidate['end'] === (string)$range['end']
+                    && json_encode($candidateDays) === json_encode($expectedDays);
+            }));
+            if (count($candidates) < 2) {
+                continue;
+            }
+
+            usort($candidates, function (array $left, array $right) use ($userId, $year, $days): int {
+                return $this->compositeRepairCandidateScore($right, $userId, $year, $days)
+                    <=> $this->compositeRepairCandidateScore($left, $userId, $year, $days);
+            });
+            $target = $candidates[0];
+            $targetSourceKey = (string)($target['sourceKey'] ?? '');
+            $targetFingerprint = $this->fingerprint(
+                $userId,
+                $year,
+                (string)$target['start'],
+                (string)$target['end'],
+                $days,
+                $targetSourceKey
+            );
+            if ($targetSourceKey === '' || $this->requestByFingerprint($targetFingerprint) !== null) {
+                continue;
+            }
+
+            $requestId = (int)$compositeRequest['id'];
+            $this->runInTransaction(function () use ($requestId, $targetSourceKey, $targetFingerprint, $now): void {
+                $qb = $this->db->getQueryBuilder();
+                $qb->update('vacation_requests')
+                    ->set('source_key', $qb->createNamedParameter($targetSourceKey))
+                    ->set('fingerprint', $qb->createNamedParameter($targetFingerprint))
+                    ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)));
+                $qb->executeStatement();
+                $this->revisionService->recordApproval($requestId, $now);
+                $this->recordAudit($requestId, 'duplicate_source_identity_repaired', null, null, $now);
+            });
+        }
+    }
+
+    private function compositeRepairCandidateScore(array $range, string $userId, int $year, array $days): int
+    {
+        $sourceKey = (string)($range['sourceKey'] ?? '');
+        $fingerprint = $this->fingerprint(
+            $userId,
+            $year,
+            (string)$range['start'],
+            (string)$range['end'],
+            $days,
+            $sourceKey
+        );
+        $existing = $this->requestByFingerprint($fingerprint);
+        $statusScore = match ((string)($existing['status'] ?? '')) {
+            self::STATUS_APPROVED => 3_000_000_000,
+            self::STATUS_CANCELLED, self::STATUS_REJECTED => -3_000_000_000,
+            '' => 2_000_000_000,
+            default => 1_000_000_000,
+        };
+
+        return $statusScore + min(999_999_999, max(0, (int)($range['lastModified'] ?? 0)));
     }
 
     private function markMissingRequests(array $years, array $seenFingerprints, int $now): void

@@ -38,6 +38,9 @@ $check($ranges[0]['duplicateDays'] === ['2026-07-13', '2026-07-14'], 'Duplicate 
 $check($ranges[0]['dayValues'] === ['2026-07-13' => 1.0, '2026-07-14' => 1.0], 'Range values differ.');
 $check($ranges[0]['lastModified'] === 100, 'First source timestamp differs.');
 $check($ranges[1]['lastModified'] === 200, 'Second source timestamp differs.');
+$expectedCompositeSource = hash('sha256', 'source-a,source-b');
+$check($ranges[0]['legacyCompositeSourceKey'] === $expectedCompositeSource, 'Legacy composite source differs.');
+$check($ranges[1]['legacyCompositeSourceKey'] === $expectedCompositeSource, 'Second legacy composite source differs.');
 
 $separateRanges = $method->invoke(
     $service,
@@ -59,6 +62,7 @@ $check(count($separateRanges) === 2, 'Separate sources must remain separate rang
 $check($separateRanges[0]['duplicateConflict'] === false, 'First separate source was marked.');
 $check($separateRanges[1]['duplicateConflict'] === false, 'Second separate source was marked.');
 $check($separateRanges[1]['dayValues'] === ['2026-07-14' => 0.5], 'Half-day value differs.');
+$check($separateRanges[0]['legacyCompositeSourceKey'] === '', 'Separate source has a composite key.');
 
 $partialRanges = $method->invoke(
     $service,
@@ -82,5 +86,6 @@ $check($partialRanges[0]['duplicateDays'] === ['2026-07-14'], 'First partial ove
 $check($partialRanges[1]['duplicateDays'] === ['2026-07-14'], 'Second partial overlap differs.');
 $check(array_sum($partialRanges[0]['dayValues']) === 2.0, 'Full-day source value differs.');
 $check(array_sum($partialRanges[1]['dayValues']) === 1.0, 'Half-day source value differs.');
+$check($partialRanges[0]['legacyCompositeSourceKey'] === '', 'Partial overlap has a composite key.');
 
 echo "Duplicate source range tests passed.\n";

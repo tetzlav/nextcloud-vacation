@@ -1189,8 +1189,11 @@ class VacationReportService
 
         $duplicateDays = [];
         $duplicateSources = [];
+        $sourceSets = [];
         foreach (array_keys($values) as $day) {
             $sources = array_keys($daySources[$day] ?? []);
+            sort($sources, SORT_STRING);
+            $sourceSets[] = implode(',', $sources);
             if (count($sources) <= 1) {
                 continue;
             }
@@ -1203,6 +1206,13 @@ class VacationReportService
             }
         }
 
+        $sourceSets = array_values(array_unique($sourceSets));
+        $legacyCompositeSourceKey = count($duplicateDays) === count($values)
+            && count($sourceSets) === 1
+            && str_contains($sourceSets[0], ',')
+                ? hash('sha256', $sourceSets[0])
+                : '';
+
         return [
             'start' => $start,
             'end' => $end,
@@ -1212,6 +1222,7 @@ class VacationReportService
             'duplicateConflict' => count($duplicateDays) > 0,
             'duplicateDays' => $duplicateDays,
             'duplicateSourceKeys' => array_keys($duplicateSources),
+            'legacyCompositeSourceKey' => $legacyCompositeSourceKey,
         ];
     }
 }
