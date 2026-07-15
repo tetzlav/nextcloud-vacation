@@ -19,8 +19,9 @@ class VacationPdfService
     ) {
     }
 
-    public function render(array $row, int $year, string $timeZone): string
+    public function render(array $row, int $year, string $timeZone, ?IL10N $l10n = null): string
     {
+        $l10n ??= $this->l10n;
         $periodsByDays = [];
         foreach ($row['dayRanges'] as $range) {
             $days = $this->rangeDays($row, $range);
@@ -28,9 +29,9 @@ class VacationPdfService
             $period = [
                 'start' => (string)$range['start'],
                 'end' => (string)$range['end'],
-                'label' => $this->dateRange((string)$range['start'], (string)$range['end']),
+                'label' => $this->dateRange((string)$range['start'], (string)$range['end'], $l10n),
                 'days' => array_sum($days),
-                'approvalLines' => $this->approvalLines($range['approval'] ?? null, $timeZone),
+                'approvalLines' => $this->approvalLines($range['approval'] ?? null, $timeZone, $l10n),
                 'approvalStatus' => (string)($range['approval']['status'] ?? ''),
             ];
             $key = json_encode($days, JSON_THROW_ON_ERROR);
@@ -49,7 +50,7 @@ class VacationPdfService
         $expiredCarryover = (float)$row['expiredCarryover'];
         $specialLeaveEntries = array_map(
             fn (array $entry): array => $entry + [
-                'postingLines' => $this->specialLeavePostingLines($entry, $timeZone),
+                'postingLines' => $this->specialLeavePostingLines($entry, $timeZone, $l10n),
             ],
             $row['specialLeaveEntries'] ?? []
         );
@@ -66,12 +67,12 @@ class VacationPdfService
             'totalCredits' => $baseEntitlement + $carryover + $specialLeave,
             'totalDebits' => (float)$row['vacationDays'] + $expiredCarryover,
             'remaining' => (float)$row['remainingDays'],
-            'generatedAt' => $this->l10n->l('date', time()),
+            'generatedAt' => $l10n->l('date', time()),
         ];
 
         ob_start();
-        $l = $this->l10n;
-        $amount = fn (float $value): string => $this->amount($value);
+        $l = $l10n;
+        $amount = fn (float $value): string => $this->amount($value, $l10n);
         include dirname(__DIR__, 2) . '/templates/vacation_form.php';
         $html = (string)ob_get_clean();
 
@@ -119,41 +120,41 @@ class VacationPdfService
         };
     }
 
-    private function date(string $day): string
+    private function date(string $day, IL10N $l10n): string
     {
-        $locale = method_exists($this->l10n, 'getLocaleCode') ? strtolower((string)$this->l10n->getLocaleCode()) : '';
+        $locale = method_exists($l10n, 'getLocaleCode') ? strtolower((string)$l10n->getLocaleCode()) : '';
         $format = str_starts_with($locale, 'de') ? 'd.m.Y' : (str_starts_with($locale, 'en_us') ? 'm/d/Y' : 'd/m/Y');
         return date($format, strtotime($day));
     }
 
-    private function dateRange(string $start, string $end): string
+    private function dateRange(string $start, string $end, IL10N $l10n): string
     {
-        return $start === $end ? $this->date($start) : $this->date($start) . ' - ' . $this->date($end);
+        return $start === $end ? $this->date($start, $l10n) : $this->date($start, $l10n) . ' - ' . $this->date($end, $l10n);
     }
 
-    private function amount(float $value): string
+    private function amount(float $value, IL10N $l10n): string
     {
-        $locale = method_exists($this->l10n, 'getLocaleCode') ? strtolower((string)$this->l10n->getLocaleCode()) : '';
+        $locale = method_exists($l10n, 'getLocaleCode') ? strtolower((string)$l10n->getLocaleCode()) : '';
         $decimal = str_starts_with($locale, 'de') ? ',' : '.';
         $formatted = number_format($value, 2, $decimal, '');
         return rtrim(rtrim($formatted, '0'), $decimal);
     }
 
-    private function specialLeavePostingLines(array $entry, string $timeZone): array
+    private function specialLeavePostingLines(array $entry, string $timeZone, IL10N $l10n): array
     {
         $postedAt = (new DateTimeImmutable('@' . (int)$entry['granted_at']))
             ->setTimezone(new DateTimeZone($timeZone));
         return [
-            $this->l10n->t('Credited on %s', [$this->date($postedAt->format('Y-m-d'))]),
-            $this->l10n->t('by %s', [(string)$entry['grantedDisplayName']]),
+            $l10n->t('Credited on %s', [$this->date($postedAt->format('Y-m-d'), $l10n)]),
+            $l10n->t('by %s', [(string)$entry['grantedDisplayName']]),
             'SHA-256 ' . (string)$entry['entry_hash'],
         ];
     }
 
-    private function approvalLines(mixed $approval, string $timeZone): array
+    private function approvalLines(mixed $approval, string $timeZone, IL10N $l10n): array
     {
         if (!is_array($approval)) {
-            return [$this->l10n->t('Not synchronized')];
+            return [$l10n->t('Not synchronized')];
         }
 
         $status = (string)($approval['status'] ?? '');
@@ -163,19 +164,19 @@ class VacationPdfService
             $revision = (int)($approval['current_revision'] ?? 0);
             if ($approvedAt > 0) {
                 $approvedDateTime = (new DateTimeImmutable('@' . $approvedAt))->setTimezone(new DateTimeZone($timeZone));
-                $date = $this->date($approvedDateTime->format('Y-m-d'));
+                $date = $this->date($approvedDateTime->format('Y-m-d'), $l10n);
                 $time = $approvedDateTime->format('H:i');
                 $lines = [$requestId > 0 && $revision > 0
-                    ? $this->l10n->t('on %1$s at %2$s · Approval #%3$s-R%4$s', [$date, $time, $requestId, $revision])
-                    : $this->l10n->t('on %1$s at %2$s', [$date, $time])];
+                    ? $l10n->t('on %1$s at %2$s · Approval #%3$s-R%4$s', [$date, $time, $requestId, $revision])
+                    : $l10n->t('on %1$s at %2$s', [$date, $time])];
             } else {
-                $lines = [$this->l10n->t('on %1$s at %2$s', ['-', '-'])];
+                $lines = [$l10n->t('on %1$s at %2$s', ['-', '-'])];
             }
             if ((int)($approval['auto_approved'] ?? 0) === 1) {
-                $lines[] = $this->l10n->t('Automatic');
+                $lines[] = $l10n->t('Automatic');
             } else {
                 $approvedBy = trim((string)($approval['approvedDisplayName'] ?? $approval['approved_by'] ?? ''));
-                $lines[] = $this->l10n->t('by %s', [$approvedBy !== '' ? $approvedBy : '-']);
+                $lines[] = $l10n->t('by %s', [$approvedBy !== '' ? $approvedBy : '-']);
             }
             $revisionHash = $this->revisionService->revisionHash($requestId, $revision);
             if ($revisionHash !== null) {
@@ -185,15 +186,15 @@ class VacationPdfService
         }
 
         return [match ($status) {
-            ApprovalService::STATUS_PENDING_APPROVAL => $this->l10n->t('Waiting for approval'),
-            ApprovalService::STATUS_PENDING_DETECTION => $this->l10n->t('Waiting for stabilization'),
-            ApprovalService::STATUS_DUPLICATE_CONFLICT => $this->l10n->t('Duplicate calendar entry. Remove one of the overlapping entries before approval.'),
-            ApprovalService::STATUS_CHANGED_AFTER_APPROVAL => $this->l10n->t('Changed after approval'),
-            ApprovalService::STATUS_REJECTED => $this->l10n->t('Rejected'),
-            ApprovalService::STATUS_CANCELLATION_PENDING => $this->l10n->t('Cancellation pending'),
-            ApprovalService::STATUS_APPROVED_MISSING => $this->l10n->t('Booking retained'),
-            ApprovalService::STATUS_CANCELLED => $this->l10n->t('Cancelled'),
-            default => $this->l10n->t('Not synchronized'),
+            ApprovalService::STATUS_PENDING_APPROVAL => $l10n->t('Waiting for approval'),
+            ApprovalService::STATUS_PENDING_DETECTION => $l10n->t('Waiting for stabilization'),
+            ApprovalService::STATUS_DUPLICATE_CONFLICT => $l10n->t('Duplicate calendar entry. Remove one of the overlapping entries before approval.'),
+            ApprovalService::STATUS_CHANGED_AFTER_APPROVAL => $l10n->t('Changed after approval'),
+            ApprovalService::STATUS_REJECTED => $l10n->t('Rejected'),
+            ApprovalService::STATUS_CANCELLATION_PENDING => $l10n->t('Cancellation pending'),
+            ApprovalService::STATUS_APPROVED_MISSING => $l10n->t('Booking retained'),
+            ApprovalService::STATUS_CANCELLED => $l10n->t('Cancelled'),
+            default => $l10n->t('Not synchronized'),
         }];
     }
 }

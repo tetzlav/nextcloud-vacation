@@ -542,8 +542,11 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                                                     type="button"
                                                                     class="approval-hash-copy"
                                                                     data-copy-hash="<?php p($approvalHash); ?>"
+                                                                    data-copy-label="<?php p($l->t('Copy hash')); ?>"
                                                                     data-copied-label="<?php p($l->t('Copied')); ?>"
-                                                                ><?php p($l->t('Copy hash')); ?></button>
+                                                                    title="<?php p($l->t('Copy hash')); ?>"
+                                                                    aria-label="<?php p($l->t('Copy hash')); ?>"
+                                                                ><span class="copy-icon" aria-hidden="true"></span></button>
                                                             </div>
                                                         </details>
                                                     <?php endif; ?>
@@ -599,9 +602,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                     <?php endforeach; ?>
                                 </div>
                             </details>
-                            <?php if (!$_['isAdmin']): ?>
-                                <a class="button vacation-pdf-button" href="<?php p($_['pdfUrl']); ?>"><?php p($l->t('Download vacation summary PDF')); ?></a>
-                            <?php endif; ?>
+                            <a class="button vacation-pdf-button" href="<?php p($_['pdfUrls'][$row['userId']] ?? $_['pdfUrl']); ?>"><?php p($l->t('Download vacation summary PDF')); ?></a>
                             </div>
                         </td>
                     </tr>

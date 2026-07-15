@@ -18,6 +18,9 @@ use OCP\AppFramework\Http\Response;
 use OCP\IConfig;
 use OCP\IL10N;
 use OCP\IRequest;
+use OCP\IUserManager;
+use OCP\L10N\IFactory as IL10NFactory;
+use Throwable;
 
 class PdfController extends Controller
 {
@@ -29,6 +32,8 @@ class PdfController extends Controller
         private VacationPdfService $pdfService,
         private IConfig $config,
         private IL10N $l10n,
+        private IL10NFactory $l10nFactory,
+        private IUserManager $userManager,
         private ?string $UserId
     ) {
         parent::__construct($appName, $request);
@@ -49,26 +54,53 @@ class PdfController extends Controller
             return new DataResponse(['error' => 'Invalid year'], 400);
         }
 
-        $report = $this->reportService->reportForUser($this->UserId, $year, false, false);
+        $requestedUserId = trim((string)$this->request->getParam('user_id', ''));
+        $targetUserId = $requestedUserId === '' ? $this->UserId : $requestedUserId;
+        if (
+            $targetUserId !== $this->UserId
+            && (!$this->reportService->isCalendarAdmin($this->UserId) || !$this->reportService->isStaffUser($targetUserId))
+        ) {
+            return new DataResponse(['error' => 'Forbidden'], 403);
+        }
+
+        $report = $this->reportService->reportForUser($targetUserId, $year, false, false);
         $report = $this->approvalService->applyBookedDaysToReport($report, $year);
         $report = $this->approvalService->attachApprovalsToReport($report, $year);
         if (count($report) === 0) {
             return new DataResponse(['error' => 'No vacation data found'], 404);
         }
 
-        $timeZone = $this->timeZoneForUser($this->UserId);
-        $pdf = $this->pdfService->render($report[0], $year, $timeZone);
-        $displayName = trim((string)($report[0]['displayName'] ?? $this->UserId));
+        $timeZone = $this->timeZoneForUser($targetUserId);
+        $targetL10n = $this->l10nForUser($targetUserId);
+        $pdf = $this->pdfService->render($report[0], $year, $timeZone, $targetL10n);
+        $displayName = trim((string)($report[0]['displayName'] ?? $targetUserId));
         $generatedOn = (new DateTimeImmutable('now', new DateTimeZone($timeZone)))->format('Y-m-d');
         $filename = sprintf(
             '%s-%d_%s_%s.pdf',
-            $this->filenamePart($this->l10n->t('Vacation'), 'Vacation'),
+            $this->filenamePart($targetL10n->t('Vacation'), 'Vacation'),
             $year,
-            $this->filenamePart($displayName, $this->UserId),
+            $this->filenamePart($displayName, $targetUserId),
             $generatedOn
         );
 
         return new DataDownloadResponse($pdf, $filename, 'application/pdf');
+    }
+
+    private function l10nForUser(string $userId): IL10N
+    {
+        $user = $this->userManager->get($userId);
+        if ($user === null) {
+            return $this->l10n;
+        }
+
+        try {
+            return $this->l10nFactory->get(
+                Application::APP_ID,
+                $this->l10nFactory->getUserLanguage($user)
+            );
+        } catch (Throwable) {
+            return $this->l10n;
+        }
     }
 
     private function filenamePart(string $value, string $fallback): string

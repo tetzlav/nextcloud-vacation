@@ -79,6 +79,16 @@ class PageController extends Controller
 
         $report = $this->approvalService->applyBookedDaysToReport($report, $year);
         $report = $this->approvalService->attachApprovalsToReport($report, $year);
+        $pdfUrls = [];
+        foreach ($report as $row) {
+            $reportUserId = (string)($row['userId'] ?? '');
+            if ($reportUserId !== '') {
+                $pdfUrls[$reportUserId] = $this->urlGenerator->linkToRoute(Application::APP_ID . '.pdf.download', [
+                    'year' => $year,
+                    'user_id' => $reportUserId,
+                ]);
+            }
+        }
 
         return new TemplateResponse(Application::APP_ID, 'main', [
             'year' => $year,
@@ -113,6 +123,7 @@ class PageController extends Controller
             'specialLeaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.special_leave.grant'),
             'calendarNewEventUrl' => $this->urlGenerator->linkToRoute('calendar.view.indexdirect.new'),
             'pdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.pdf.download', ['year' => $year]),
+            'pdfUrls' => $pdfUrls,
         ]);
     }
 

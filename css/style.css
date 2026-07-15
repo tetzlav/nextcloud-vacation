@@ -364,8 +364,9 @@
     font-weight: 400;
 }
 
-.entitlement-details[open] > .carryover-form {
-    padding-inline-start: 18px;
+.entitlement-details[open] > .carryover-form,
+.entitlement-details[open] > .special-leave-journal {
+    margin-inline-start: 18px;
 }
 
 .user-periods > summary {
@@ -549,15 +550,46 @@
 
 .approval-integrity-content code {
     color: var(--color-text-maxcontrast);
-    font-family: monospace;
+    font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, monospace;
     font-size: var(--vacation-font-size-small);
     overflow-wrap: anywhere;
 }
 
 .approval-hash-copy {
-    font-size: var(--vacation-font-size-small);
+    align-items: center;
+    display: inline-flex;
+    justify-content: center;
     min-height: 28px;
-    padding: 3px 9px;
+    min-width: 28px;
+    padding: 3px;
+}
+
+.copy-icon {
+    display: inline-block;
+    height: 15px;
+    position: relative;
+    width: 15px;
+}
+
+.copy-icon::before,
+.copy-icon::after {
+    border: 1.5px solid currentColor;
+    border-radius: 2px;
+    content: '';
+    height: 9px;
+    position: absolute;
+    width: 8px;
+}
+
+.copy-icon::before {
+    inset-block-start: 1px;
+    inset-inline-start: 5px;
+}
+
+.copy-icon::after {
+    background: var(--color-primary-element);
+    inset-block-start: 5px;
+    inset-inline-start: 1px;
 }
 
 .rejection-reason {
@@ -657,18 +689,23 @@
     align-items: end;
     display: grid;
     gap: 8px;
-    grid-template-columns: repeat(2, max-content) max-content;
+    grid-template-columns: repeat(2, 64px) 34px;
     margin: 8px 0 0;
+    width: max-content;
 }
 
-.carryover-form label {
+.carryover-form label,
+.special-leave-form label {
     display: grid;
+    font-size: var(--vacation-font-size-body);
+    font-weight: 600;
     gap: 3px;
 }
 
 .carryover-form input {
-    max-width: 64px;
+    min-width: 0;
     min-height: 30px;
+    width: 64px;
 }
 
 .carryover-button {
@@ -688,6 +725,10 @@
     width: 190px;
 }
 
+.special-leave-journal > strong {
+    font-size: var(--vacation-font-size-body);
+}
+
 .special-leave-entry {
     border-inline-start: 2px solid var(--color-primary-element);
     padding-inline-start: 6px;
@@ -703,13 +744,9 @@
 .special-leave-form {
     align-items: end;
     display: grid;
-    gap: 6px;
+    gap: 8px;
     grid-template-columns: 64px 34px;
-}
-
-.special-leave-form label {
-    display: grid;
-    gap: 3px;
+    width: 190px;
 }
 
 .special-leave-form .special-leave-reason {
@@ -718,11 +755,17 @@
 }
 
 .special-leave-form .special-leave-reason input {
+    min-width: 0;
     width: 190px;
 }
 
 .special-leave-form input {
     min-height: 30px;
+}
+
+.special-leave-form input[name="amount"] {
+    min-width: 0;
+    width: 64px;
 }
 
 .special-leave-result {

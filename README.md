@@ -41,6 +41,7 @@ Backbone or legacy `OC.*` menu APIs. Database access uses the public query build
 - The year selector reloads the active personal or approval view immediately when its value changes.
 - Balance values include their day unit, and carryover expiry is shown only for the amount that has not already been consumed before the cutoff.
 - Users can download a compact yearly vacation summary PDF for their records. It contains entitlement, carryover, booked periods, approval date, local approval time, approver and the compact approval reference `Approval #<request>-R<revision>`.
+- Calendar managers can download the same PDF from every employee row in Vacation management; access is limited to members of the configured staff group and uses the employee's language and timezone.
 - Special-leave entries increase the available balance and appear as separate credited rows in the yearly PDF, including reason, posting metadata and SHA-256 hash.
 - Administrators can upload a PNG or JPEG logo for the PDF in the Vacation settings. The logo is stored in private Nextcloud app data and therefore survives Git deployments and app updates.
 

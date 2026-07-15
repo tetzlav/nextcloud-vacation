@@ -19,10 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 await navigator.clipboard.writeText(hash);
-                const originalLabel = element.textContent ?? '';
-                element.textContent = element.dataset.copiedLabel ?? originalLabel;
+                const originalLabel = element.dataset.copyLabel ?? element.getAttribute('aria-label') ?? '';
+                const copiedLabel = element.dataset.copiedLabel ?? originalLabel;
+                element.setAttribute('aria-label', copiedLabel);
+                element.setAttribute('title', copiedLabel);
                 window.setTimeout(() => {
-                    element.textContent = originalLabel;
+                    element.setAttribute('aria-label', originalLabel);
+                    element.setAttribute('title', originalLabel);
                 }, 1600);
             } catch {
                 // The browser keeps the hash selectable if clipboard access is denied.

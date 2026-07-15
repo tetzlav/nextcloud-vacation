@@ -54,6 +54,11 @@ class VacationReportService
         return false;
     }
 
+    public function isStaffUser(string $userId): bool
+    {
+        return $this->groupManager->isInGroup($userId, $this->staffGroup());
+    }
+
     public function vacationKeywords(): string
     {
         return implode(', ', $this->vacationKeywordList());
