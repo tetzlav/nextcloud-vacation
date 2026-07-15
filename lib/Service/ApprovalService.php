@@ -650,6 +650,13 @@ class ApprovalService
         $existing = $this->requestByFingerprint($fingerprint);
         $dayListJson = json_encode($days, JSON_THROW_ON_ERROR);
         $daysCountHundredths = $this->dayValuesToHundredths($days);
+        $notifyDuplicate = $duplicateConflict && !$this->hasNotifiedDuplicateOverlap(
+            $userId,
+            $year,
+            $start,
+            $end,
+            $existing === null ? 0 : (int)$existing['id']
+        );
 
         if ($existing === null) {
             $qb = $this->db->getQueryBuilder();
@@ -670,13 +677,23 @@ class ApprovalService
                     ),
                     'first_seen_at' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
                     'last_seen_at' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
-                    'notified_at' => $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT),
+                    'notified_at' => $qb->createNamedParameter(
+                        $duplicateConflict ? $now : 0,
+                        IQueryBuilder::PARAM_INT
+                    ),
                     'approved_at' => $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT),
                     'auto_approved' => $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT),
                     'auto_approval_reason' => $qb->createNamedParameter(null),
                     'updated_at' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
                 ]);
             $qb->executeStatement();
+            if ($notifyDuplicate) {
+                $this->notifyRequesterDuplicateConflict([
+                    'user_id' => $userId,
+                    'date_start' => $start,
+                    'date_end' => $end,
+                ]);
+            }
             return;
         }
 
@@ -710,10 +727,16 @@ class ApprovalService
             $qb->update('vacation_requests')
                 ->set('status', $qb->createNamedParameter(self::STATUS_DUPLICATE_CONFLICT))
                 ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
-                ->set('notified_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                ->set('notified_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
                 ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
                 ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
             $qb->executeStatement();
+            $existing['status'] = self::STATUS_DUPLICATE_CONFLICT;
+            $existing['notified_at'] = $now;
+            $existing['updated_at'] = $now;
+            if ($notifyDuplicate) {
+                $this->notifyRequesterDuplicateConflict($existing);
+            }
             return;
         }
 
@@ -1227,6 +1250,36 @@ class ApprovalService
         );
     }
 
+    private function notifyRequesterDuplicateConflict(array $request): void
+    {
+        if (!$this->employeeNotificationsEnabled()) {
+            return;
+        }
+
+        $userId = (string)$request['user_id'];
+        $user = $this->userManager->get($userId);
+        if ($user === null || $user->getEMailAddress() === null) {
+            return;
+        }
+
+        $l = $this->l10nForUser($user);
+        $period = $this->formatMailDateRange(
+            (string)$request['date_start'],
+            (string)$request['date_end'],
+            $userId
+        );
+
+        $this->sendMail(
+            [$user->getEMailAddress() => $user->getDisplayName() ?: $userId],
+            $l->t('Duplicate vacation entry'),
+            $l->t(
+                "Your vacation entry on %1\$s overlaps another entry in the Status calendar. Please remove one of the duplicate entries.\n\n%2\$s",
+                [$period, $this->personalAppUrl($request)]
+            ),
+            self::MAIL_KIND_EMPLOYEE
+        );
+    }
+
     private function notifyRequesterRejected(array $request): void
     {
         if (!$this->employeeNotificationsEnabled()) {
@@ -1650,6 +1703,39 @@ class ApprovalService
             }
 
             return $requests;
+        } finally {
+            $result->closeCursor();
+        }
+    }
+
+    private function hasNotifiedDuplicateOverlap(
+        string $userId,
+        int $year,
+        string $start,
+        string $end,
+        int $excludeRequestId
+    ): bool {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('id')
+            ->from('vacation_requests')
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('year', $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_DUPLICATE_CONFLICT)))
+            ->andWhere($qb->expr()->gt('notified_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->lte('date_start', $qb->createNamedParameter($end)))
+            ->andWhere($qb->expr()->gte('date_end', $qb->createNamedParameter($start)))
+            ->setMaxResults(1);
+
+        if ($excludeRequestId > 0) {
+            $qb->andWhere($qb->expr()->neq(
+                'id',
+                $qb->createNamedParameter($excludeRequestId, IQueryBuilder::PARAM_INT)
+            ));
+        }
+
+        $result = $qb->executeQuery();
+        try {
+            return $result->fetchOne() !== false;
         } finally {
             $result->closeCursor();
         }

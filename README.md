@@ -205,6 +205,9 @@ rejected booking. Their shared calendar days are charged only once. Duplicate co
 cannot be approved manually, in bulk or automatically. After one overlapping calendar
 entry is removed, the remaining unresolved period starts the normal stabilization wait
 from the beginning.
+When a duplicate conflict is first detected, the employee receives one localized warning
+through the asynchronous mail queue if employee notifications are enabled. Repeated
+synchronization does not send the warning again.
 Approvals created by an older app version for a combined duplicate-source fingerprint
 are reassigned once to the most plausible individual calendar source during the next
 scan. The repair is recorded in the audit log and creates a new immutable revision;
