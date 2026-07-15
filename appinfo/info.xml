@@ -11,6 +11,7 @@
     <namespace>NextcloudVacation</namespace>
     <category>organization</category>
     <dependencies>
+        <php min-version="8.1"/>
         <nextcloud min-version="28" max-version="35"/>
     </dependencies>
     <navigations>

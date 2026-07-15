@@ -7,6 +7,7 @@ namespace OCA\NextcloudVacation\Controller;
 use OCA\NextcloudVacation\AppInfo\Application;
 use OCA\NextcloudVacation\Settings\Section;
 use OCA\NextcloudVacation\Service\PdfLogoService;
+use OCA\NextcloudVacation\Service\VacationReportService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\IConfig;
@@ -40,7 +41,7 @@ class AdminSettingsController extends Controller
         $this->setAppValue('calendar_displayname');
         $this->setAppValue('vacation_keywords');
         $this->setAppValue('vacation_entitlement');
-        $this->setAppValue('carryover_expires');
+        $this->setCarryoverExpires();
         $this->setAppValue('approval_wait_minutes');
         $this->setAppValue('sync_interval_minutes');
         $this->setAppValue('display_timezone');
@@ -63,6 +64,14 @@ class AdminSettingsController extends Controller
     {
         $value = trim((string)$this->request->getParam($key, ''));
         $this->config->setAppValue(Application::APP_ID, $key, $value);
+    }
+
+    private function setCarryoverExpires(): void
+    {
+        $value = trim((string)$this->request->getParam('carryover_expires', ''));
+        if (VacationReportService::isValidCarryoverMonthDay($value)) {
+            $this->config->setAppValue(Application::APP_ID, 'carryover_expires', $value);
+        }
     }
 
     private function setCsvAppValue(string $key): void

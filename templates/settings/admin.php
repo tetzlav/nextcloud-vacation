@@ -113,7 +113,7 @@ if ($staffGroup !== '' && !isset($groups[$staffGroup])) {
 
         <div class="vacation-settings-row">
             <label for="nextcloud-vacation-carryover-expires"><?php p($l->t('Carryover expires')); ?></label>
-            <input id="nextcloud-vacation-carryover-expires" type="text" name="carryover_expires" value="<?php p($_['carryoverExpires']); ?>" placeholder="03-31">
+            <input id="nextcloud-vacation-carryover-expires" type="text" name="carryover_expires" value="<?php p($_['carryoverExpires']); ?>" placeholder="03-31" pattern="\d{2}-\d{2}" maxlength="5" required>
             <div class="settings-hint"><?php p($l->t('Month and day until carryover is available, formatted as MM-DD.')); ?></div>
         </div>
 

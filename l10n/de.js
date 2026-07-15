@@ -67,6 +67,7 @@ OC.L10N.register(
         "Amount in days": "Anzahl Tage",
         "Reason": "Grund",
         "Employee entitlement": "Anspruch",
+        "Entitlement or carryover is invalid.": "Anspruch oder Übertrag ist ungültig.",
         "Automatic carryover from previous year": "Automatischer Übertrag aus dem Vorjahr",
         "Manual carryover": "Manueller Übertrag",
         "Carryover expires on %s": "Übertrag verfällt am %s",

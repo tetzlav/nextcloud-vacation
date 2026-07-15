@@ -487,6 +487,9 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         </label>
                                         <button type="submit" class="carryover-button" title="<?php p($l->t('Save')); ?>" aria-label="<?php p($l->t('Save')); ?>">&#10003;</button>
                                     </form>
+                                    <?php if ((string)$_['openBalanceUserId'] === (string)$row['userId'] && $_['balanceResult'] === 'invalid'): ?>
+                                        <span class="special-leave-result special-leave-error"><?php p($l->t('Entitlement or carryover is invalid.')); ?></span>
+                                    <?php endif; ?>
                                     <div class="special-leave-journal">
                                         <strong><?php p($l->t('Special leave')); ?></strong>
                                         <?php foreach ($row['specialLeaveEntries'] as $entry): ?>

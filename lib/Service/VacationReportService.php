@@ -6,6 +6,7 @@ namespace OCA\NextcloudVacation\Service;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use InvalidArgumentException;
 use OCP\Calendar\IManager as ICalendarManager;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -27,6 +28,7 @@ class VacationReportService
     private const DEFAULT_VACATION_ENTITLEMENT = 30;
     private const DEFAULT_CARRYOVER_EXPIRES = '03-31';
     private const DEFAULT_VACATION_KEYWORDS = 'Urlaub, Vacation';
+    private const MAX_BALANCE_DAYS_HUNDREDTHS = 36600;
     private ?array $vacationKeywordCache = null;
 
     public function __construct(
@@ -316,10 +318,58 @@ class VacationReportService
     }
 
 
-    public function saveCarryover(string $userId, int $year, string $amount, string $updatedBy): void
+    public function saveVacationBalanceSettings(
+        string $userId,
+        int $year,
+        string $entitlement,
+        string $carryover,
+        string $updatedBy
+    ): void
     {
-        $amountHundredths = $this->parseDayAmount($amount);
+        $userId = trim($userId);
+        $updatedBy = trim($updatedBy);
+        if (
+            $year < 2000
+            || $year > 2100
+            || $userId === ''
+            || $this->userManager->get($userId) === null
+            || !$this->isStaffUser($userId)
+            || !$this->isCalendarAdmin($updatedBy)
+        ) {
+            throw new InvalidArgumentException('Invalid employee, year or calendar administrator.');
+        }
+
+        $entitlement = trim($entitlement);
+        $entitlementHundredths = $entitlement === ''
+            ? null
+            : $this->parseDayAmount($entitlement, 0, self::MAX_BALANCE_DAYS_HUNDREDTHS, 'entitlement');
+        $carryoverHundredths = $this->parseDayAmount(
+            $carryover,
+            -self::MAX_BALANCE_DAYS_HUNDREDTHS,
+            self::MAX_BALANCE_DAYS_HUNDREDTHS,
+            'carryover'
+        );
         $now = time();
+
+        $this->db->beginTransaction();
+        try {
+            $this->persistPersonalEntitlement($userId, $year, $entitlementHundredths, $updatedBy, $now);
+            $this->persistCarryover($userId, $year, $carryoverHundredths, $updatedBy, $now);
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function persistCarryover(
+        string $userId,
+        int $year,
+        int $amountHundredths,
+        string $updatedBy,
+        int $now
+    ): void
+    {
         $existing = $this->carryoverForUserYear($userId, $year);
         $qb = $this->db->getQueryBuilder();
 
@@ -343,13 +393,18 @@ class VacationReportService
         $qb->executeStatement();
     }
 
-    public function savePersonalEntitlement(string $userId, int $year, string $amount, string $updatedBy): void
+    private function persistPersonalEntitlement(
+        string $userId,
+        int $year,
+        ?int $amountHundredths,
+        string $updatedBy,
+        int $now
+    ): void
     {
-        $amount = trim($amount);
         $existing = $this->personalEntitlementForUserYear($userId, $year);
         $qb = $this->db->getQueryBuilder();
 
-        if ($amount === '') {
+        if ($amountHundredths === null) {
             if ($existing !== null) {
                 $qb->delete('vacation_entitlements')
                     ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
@@ -358,9 +413,6 @@ class VacationReportService
 
             return;
         }
-
-        $amountHundredths = $this->parseDayAmount($amount);
-        $now = time();
 
         if ($existing === null) {
             $qb->insert('vacation_entitlements')
@@ -540,14 +592,19 @@ class VacationReportService
         return new DateTimeImmutable($year . '-' . $monthDay . ' 23:59:59', $timezone);
     }
 
-    private function parseDayAmount(string $amount): int
+    private function parseDayAmount(string $amount, int $minimum, int $maximum, string $field): int
     {
         $normalized = str_replace(',', '.', trim($amount));
-        if ($normalized === '' || !is_numeric($normalized)) {
-            return 0;
+        if (preg_match('/^-?\d+(?:\.\d{1,2})?$/', $normalized) !== 1) {
+            throw new InvalidArgumentException('Invalid ' . $field . ' amount.');
         }
 
-        return (int)round(((float)$normalized) * 100);
+        $hundredths = (int)round(((float)$normalized) * 100);
+        if ($hundredths < $minimum || $hundredths > $maximum) {
+            throw new InvalidArgumentException(ucfirst($field) . ' amount is outside the supported range.');
+        }
+
+        return $hundredths;
     }
 
     private function hundredthsToFloat(int $value): float
@@ -589,8 +646,17 @@ class VacationReportService
 
     public function carryoverExpiresMonthDay(): string
     {
-        $raw = $this->config->getAppValue(self::APP_ID, 'carryover_expires', self::DEFAULT_CARRYOVER_EXPIRES);
-        return preg_match('/^\d{2}-\d{2}$/', $raw) === 1 ? $raw : self::DEFAULT_CARRYOVER_EXPIRES;
+        $raw = trim($this->config->getAppValue(self::APP_ID, 'carryover_expires', self::DEFAULT_CARRYOVER_EXPIRES));
+        return self::isValidCarryoverMonthDay($raw) ? $raw : self::DEFAULT_CARRYOVER_EXPIRES;
+    }
+
+    public static function isValidCarryoverMonthDay(string $value): bool
+    {
+        if (preg_match('/^(\d{2})-(\d{2})$/', trim($value), $matches) !== 1) {
+            return false;
+        }
+
+        return checkdate((int)$matches[1], (int)$matches[2], 2001);
     }
 
     private function csvConfig(string $raw): array

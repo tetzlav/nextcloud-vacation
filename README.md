@@ -167,6 +167,8 @@ than regular expressions. The default is `Urlaub, Vacation`.
 
 Calendar admins can override the global yearly entitlement per employee and year in
 the overview. Leave the employee entitlement field empty to use the global default.
+Entitlement and carryover inputs are validated strictly and saved together in one
+database transaction, so an invalid value cannot partially overwrite the balance.
 Carryover can be entered manually per employee and year. If no manual carryover is
 configured, the app calculates carryover from the previous year only when the employee
 had vacation activity in that previous year. The carryover amount is the unused part
@@ -184,8 +186,10 @@ Calendar managers add special leave in the expandable balance section of the pro
 the selected year. Corrections are recorded as new negative entries; existing entries
 are never edited or deleted. Special leave is not carried into another year automatically.
 Each posting is linked to the previous posting for that employee and year and stores its
-own SHA-256 hash. If employee notifications are enabled, the posting also queues a
-localized status email. The yearly PDF lists every posting directly below the annual
+own SHA-256 hash. An exclusive Nextcloud lock serializes postings per employee and year
+so concurrent requests cannot create two successors for the same hash. If employee
+notifications are enabled, the posting also queues a localized status email. The yearly
+PDF lists every posting directly below the annual
 vacation entitlement with its reason, posting date, manager and hash.
 
 ## Approval Workflow
@@ -311,8 +315,9 @@ are created only by a manual, bulk or automatic approval. Synchronization, cance
 and page reloads do not increment the revision. Calendar admins can also approve
 all open periods for the displayed year with the maintenance button above the table;
 that bulk action queues individual notification emails unless employee notifications are
-globally disabled. Calendar admins can also reject
-pending periods with an optional reason. Rejection stores `rejected_by`, `rejected_at`
+globally disabled. Calendar admins can also reject pending or changed-after-approval
+periods with an optional reason. Already approved periods cannot be rejected directly;
+they use the cancellation workflow described below. Rejection stores `rejected_by`, `rejected_at`
 and `rejection_reason`, sends an email to the requesting user, and does not change
 the calendar entry or vacation day calculation. If an approved period later disappears
 or changes in the calendar, its approved snapshot remains part of the vacation balance

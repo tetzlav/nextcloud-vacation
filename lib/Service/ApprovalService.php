@@ -643,14 +643,18 @@ class ApprovalService
         }
 
         $request = $this->requestById($requestId);
-        if ($request === null || $request['status'] === self::STATUS_CANCELLED) {
+        if ($request === null || !self::canRejectStatus((string)$request['status'])) {
             return;
         }
 
         $now = time();
         $reason = trim($reason);
-        $this->runInTransaction(function () use ($requestId, $rejecterId, $reason, $now): void {
+        $rejected = $this->runInTransaction(function () use ($requestId, $rejecterId, $reason, $now): bool {
             $qb = $this->db->getQueryBuilder();
+            $rejectableStatus = $qb->expr()->orX(
+                $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_PENDING_APPROVAL)),
+                $qb->expr()->eq('status', $qb->createNamedParameter(self::STATUS_CHANGED_AFTER_APPROVAL))
+            );
             $qb->update('vacation_requests')
                 ->set('status', $qb->createNamedParameter(self::STATUS_REJECTED))
                 ->set('approved_by', $qb->createNamedParameter(null))
@@ -661,16 +665,28 @@ class ApprovalService
                 ->set('auto_approved', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
                 ->set('auto_approval_reason', $qb->createNamedParameter(null))
                 ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
-                ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)));
-            $qb->executeStatement();
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter($requestId, IQueryBuilder::PARAM_INT)))
+                ->andWhere($rejectableStatus);
+            if ($qb->executeStatement() !== 1) {
+                return false;
+            }
             $this->recordAudit($requestId, 'rejected', $rejecterId, $reason === '' ? null : $reason, $now);
+            return true;
         });
+        if (!$rejected) {
+            return;
+        }
 
         $request['rejected_by'] = $rejecterId;
         $request['rejected_at'] = $now;
         $request['rejection_reason'] = $reason;
         $request['status'] = self::STATUS_REJECTED;
         $this->notifyRequesterRejected($request);
+    }
+
+    public static function canRejectStatus(string $status): bool
+    {
+        return in_array($status, [self::STATUS_PENDING_APPROVAL, self::STATUS_CHANGED_AFTER_APPROVAL], true);
     }
 
     private function upsertRequest(

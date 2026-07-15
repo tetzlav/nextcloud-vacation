@@ -9,13 +9,15 @@ use JsonException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 use OCP\IUserManager;
+use OCP\Lock\ILockingProvider;
 use Throwable;
 
 class SpecialLeaveService
 {
     public function __construct(
         private IDBConnection $db,
-        private IUserManager $userManager
+        private IUserManager $userManager,
+        private ILockingProvider $lockingProvider
     ) {
     }
 
@@ -42,37 +44,43 @@ class SpecialLeaveService
         }
 
         $grantedAt = time();
-        $this->db->beginTransaction();
+        $lockKey = 'nextcloud_vacation/special_leave/' . hash('sha256', $userId . '|' . $year);
+        $this->lockingProvider->acquireLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
         try {
-            $previousHash = $this->latestHash($userId, $year);
-            $snapshot = [
-                'schema' => 1,
-                'user_id' => $userId,
-                'year' => $year,
-                'amount_hundredths' => $amountHundredths,
-                'reason' => $reason,
-                'granted_by' => $grantedBy,
-                'granted_at' => $grantedAt,
-                'previous_hash' => $previousHash,
-            ];
-            $entryHash = self::entryHash($snapshot);
+            $this->db->beginTransaction();
+            try {
+                $previousHash = $this->latestHash($userId, $year);
+                $snapshot = [
+                    'schema' => 1,
+                    'user_id' => $userId,
+                    'year' => $year,
+                    'amount_hundredths' => $amountHundredths,
+                    'reason' => $reason,
+                    'granted_by' => $grantedBy,
+                    'granted_at' => $grantedAt,
+                    'previous_hash' => $previousHash,
+                ];
+                $entryHash = self::entryHash($snapshot);
 
-            $qb = $this->db->getQueryBuilder();
-            $qb->insert('vacation_special_leave')->values([
-                'user_id' => $qb->createNamedParameter($userId),
-                'year' => $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT),
-                'amount_hundredths' => $qb->createNamedParameter($amountHundredths, IQueryBuilder::PARAM_INT),
-                'reason' => $qb->createNamedParameter($reason),
-                'granted_by' => $qb->createNamedParameter($grantedBy),
-                'granted_at' => $qb->createNamedParameter($grantedAt, IQueryBuilder::PARAM_INT),
-                'previous_hash' => $qb->createNamedParameter($previousHash),
-                'entry_hash' => $qb->createNamedParameter($entryHash),
-            ]);
-            $qb->executeStatement();
-            $this->db->commit();
-        } catch (Throwable $exception) {
-            $this->db->rollBack();
-            throw $exception;
+                $qb = $this->db->getQueryBuilder();
+                $qb->insert('vacation_special_leave')->values([
+                    'user_id' => $qb->createNamedParameter($userId),
+                    'year' => $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT),
+                    'amount_hundredths' => $qb->createNamedParameter($amountHundredths, IQueryBuilder::PARAM_INT),
+                    'reason' => $qb->createNamedParameter($reason),
+                    'granted_by' => $qb->createNamedParameter($grantedBy),
+                    'granted_at' => $qb->createNamedParameter($grantedAt, IQueryBuilder::PARAM_INT),
+                    'previous_hash' => $qb->createNamedParameter($previousHash),
+                    'entry_hash' => $qb->createNamedParameter($entryHash),
+                ]);
+                $qb->executeStatement();
+                $this->db->commit();
+            } catch (Throwable $exception) {
+                $this->db->rollBack();
+                throw $exception;
+            }
+        } finally {
+            $this->lockingProvider->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
         }
 
         return $this->normalizeEntry($snapshot + ['entry_hash' => $entryHash]);

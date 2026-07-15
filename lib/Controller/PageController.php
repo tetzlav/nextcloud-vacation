@@ -105,6 +105,7 @@ class PageController extends Controller
             'rejectedId' => (int)$this->request->getParam('rejected_id', 0),
             'cancellationId' => (int)$this->request->getParam('cancellation_id', 0),
             'specialLeaveResult' => (string)$this->request->getParam('special_leave_result', ''),
+            'balanceResult' => (string)$this->request->getParam('balance_result', ''),
             'approverResult' => (string)$this->request->getParam('approver_result', ''),
             'openApproverUserId' => (string)$this->request->getParam('open_approver_user_id', ''),
             'openBalanceUserId' => (string)$this->request->getParam('open_balance_user_id', ''),
