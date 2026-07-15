@@ -12,6 +12,7 @@ $specialLeaveUrl = $_['specialLeaveUrl'];
 $approverAssignmentUrl = $_['approverAssignmentUrl'];
 $approverAssignments = $_['approverAssignments'];
 $approverCandidates = $_['approverCandidates'];
+$autoApprovalUsers = $_['autoApprovalUsers'];
 $defaultApproverLabel = implode(', ', $_['defaultApproverUsers']);
 $requestToken = $_['requesttoken'] ?? '';
 $activeActionId = max((int)$_['approvedId'], (int)$_['rejectedId'], (int)$_['cancellationId']);
@@ -424,9 +425,14 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         <?php if ($row['calendarSource'] !== ''): ?>
                                             <span><?php p($l->t('Calendar: %s', [$row['calendarSource']])); ?></span>
                                         <?php endif; ?>
-                                        <?php if ($assignedApproverId !== '' && isset($approverCandidates[$assignedApproverId])): ?>
-                                            <span><?php p($l->t('Approver: %s', [$approverCandidates[$assignedApproverId]])); ?></span>
-                                        <?php endif; ?>
+                                        <?php
+                                        $approverSummary = isset($autoApprovalUsers[$row['userId']])
+                                            ? $l->t('Automatic')
+                                            : ($assignedApproverId !== '' && isset($approverCandidates[$assignedApproverId])
+                                                ? $approverCandidates[$assignedApproverId]
+                                                : $l->t('Default'));
+                                        ?>
+                                        <span><?php p($l->t('Approver: %s', [$approverSummary])); ?></span>
                                     </summary>
                                     <form method="post" action="<?php p($approverAssignmentUrl); ?>" class="employee-approver-form">
                                         <?php if ($requestToken !== ''): ?><input type="hidden" name="requesttoken" value="<?php p($requestToken); ?>"><?php endif; ?>

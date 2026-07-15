@@ -82,6 +82,7 @@ class PageController extends Controller
         $report = $this->approvalService->applyBookedDaysToReport($report, $year);
         $report = $this->approvalService->attachApprovalsToReport($report, $year);
         $pdfUrls = [];
+        $autoApprovalUsers = [];
         foreach ($report as $row) {
             $reportUserId = (string)($row['userId'] ?? '');
             if ($reportUserId !== '') {
@@ -89,6 +90,9 @@ class PageController extends Controller
                     'year' => $year,
                     'user_id' => $reportUserId,
                 ]);
+                if ($approvalOverview && $this->approvalService->autoApprovalReasonForUser($reportUserId) !== null) {
+                    $autoApprovalUsers[$reportUserId] = true;
+                }
             }
         }
 
@@ -129,6 +133,7 @@ class PageController extends Controller
             'approverAssignmentUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approver_assignment.save'),
             'approverAssignments' => $approvalOverview ? $this->employeeApproverService->assignments() : [],
             'approverCandidates' => $approvalOverview ? $this->employeeApproverService->candidates() : [],
+            'autoApprovalUsers' => $autoApprovalUsers,
             'defaultApproverUsers' => $approvalOverview ? $this->approvalService->defaultApproverUsers() : [],
             'calendarNewEventUrl' => $this->urlGenerator->linkToRoute('calendar.view.indexdirect.new'),
             'pdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.pdf.download', ['year' => $year]),

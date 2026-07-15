@@ -5,6 +5,7 @@ OC.L10N.register(
         "Assign personal approver": "Persönlichen Genehmiger zuweisen",
         "Approver": "Genehmiger",
         "Approver: %s": "Genehmiger: %s",
+        "Default": "Standard",
         "Default approvers": "Standard-Genehmiger",
         "Default: %s": "Standard: %s",
         "Save approver": "Genehmiger speichern",
