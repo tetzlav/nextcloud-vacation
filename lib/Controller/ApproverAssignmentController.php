@@ -45,7 +45,7 @@ class ApproverAssignmentController extends Controller
 
         return new RedirectResponse($this->urlGenerator->linkToRoute(Application::APP_ID . '.page.approvals', [
             'year' => $year,
-            'open_user_id' => $employeeId,
+            'open_approver_user_id' => $employeeId,
             'approver_result' => $result,
         ]));
     }

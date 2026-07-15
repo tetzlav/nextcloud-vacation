@@ -40,6 +40,7 @@ class CarryoverController extends Controller
 
         return new RedirectResponse($this->urlGenerator->linkToRoute(Application::APP_ID . '.page.approvals', [
             'year' => $year,
+            'open_balance_user_id' => $userId,
         ]));
     }
 }

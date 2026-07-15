@@ -418,7 +418,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                         <td>
                             <?php if ($_['isAdmin']): ?>
                                 <?php $assignedApproverId = (string)($approverAssignments[$row['userId']] ?? ''); ?>
-                                <details class="employee-approver-details" <?php if ((string)$_['openUserId'] === (string)$row['userId'] && $_['approverResult'] !== '') { print_unescaped('open'); } ?>>
+                                <details class="employee-approver-details" <?php if ((string)$_['openApproverUserId'] === (string)$row['userId'] && $_['approverResult'] !== '') { print_unescaped('open'); } ?>>
                                     <summary title="<?php p($l->t('Assign personal approver')); ?>">
                                         <strong><?php p($row['displayName']); ?></strong>
                                         <?php if ($row['calendarSource'] !== ''): ?>
@@ -453,7 +453,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                         </td>
                         <td class="vacation-balance <?php p($row['remainingDays'] < 0 ? 'negative-days' : ''); ?>">
                             <?php if ($_['isAdmin']): ?>
-                                <details class="entitlement-details" <?php if ((string)$_['openUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== '') { print_unescaped('open'); } ?>>
+                                <details class="entitlement-details" <?php if ((string)$_['openBalanceUserId'] === (string)$row['userId']) { print_unescaped('open'); } ?>>
                                     <summary class="entitlement-toggle">
                                         <strong title="<?php p($l->t('Taken: %s, entitlement: %s, remaining: %s', [$formatDayAmount((float)$row['vacationDays']), $formatDayAmount((float)$row['entitlement']), $formatDayAmount((float)$row['remainingDays'])])); ?>"><?php p($formatDayAmount((float)$row['vacationDays'])); ?> / <?php p($formatDayAmount((float)$row['entitlement'])); ?> (<?php p($formatDayAmount((float)$row['remainingDays'])); ?>) <?php p($l->t('days')); ?></strong>
                                         <span class="entitlement-summary">
@@ -507,7 +507,7 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                             <button type="submit" class="carryover-button" title="<?php p($l->t('Post special leave')); ?>" aria-label="<?php p($l->t('Post special leave')); ?>">&#10003;</button>
                                         </form>
                                         <small><?php p($l->t('Use a negative amount to correct an earlier entry.')); ?></small>
-                                        <?php if ((string)$_['openUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== ''): ?>
+                                        <?php if ((string)$_['openBalanceUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== ''): ?>
                                             <span class="special-leave-result <?php p($_['specialLeaveResult'] === 'added' ? 'special-leave-success' : 'special-leave-error'); ?>">
                                                 <?php p($_['specialLeaveResult'] === 'added' ? $l->t('Special leave posted') : $l->t('Special leave could not be posted')); ?>
                                             </span>
