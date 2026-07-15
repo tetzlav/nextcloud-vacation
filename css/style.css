@@ -724,6 +724,8 @@
     display: grid;
     gap: 6px;
     margin-block-start: 10px;
+    max-width: 190px;
+    min-width: 0;
     padding-block-start: 8px;
     width: 190px;
 }
@@ -741,7 +743,9 @@
 .special-leave-entry small,
 .special-leave-journal > small {
     display: block;
+    max-width: 190px;
     overflow-wrap: anywhere;
+    white-space: normal;
 }
 
 .special-leave-form {
