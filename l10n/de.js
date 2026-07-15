@@ -106,7 +106,7 @@ OC.L10N.register(
         "Not synced yet": "Noch nicht synchronisiert",
         "Approved by %s on %s": "Genehmigt von %s am %s",
         "Approved by %s on %s at %s": "Genehmigt von %s am %s um %s Uhr",
-        "Automatically approved on %s at %s: %s": "Automatisch genehmigt am %s um %s Uhr: %s",
+        "Automatically approved on %s at %s": "Automatisch genehmigt am %s um %s Uhr",
         "Rejected by %s on %s at %s": "Abgelehnt von %s am %s um %s Uhr",
         "Waiting for approval": "Wartet auf Genehmigung",
         "Waiting for stabilization": "Wartet auf Stabilisierung",

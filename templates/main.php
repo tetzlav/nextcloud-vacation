@@ -161,7 +161,9 @@ $approvalLabel = static function (?array $approval) use ($l, $formatTimestamp, $
 
     if ($approval['status'] === 'approved') {
         if ((int)($approval['auto_approved'] ?? 0) === 1) {
-            return $l->t('Automatically approved on %s at %s: %s', [$formatTimestamp($approval['approved_at']), $formatTime($approval['approved_at']), $autoApprovalReasonLabel((string)($approval['auto_approval_reason'] ?? ''))]);
+            return $l->t('Automatically approved on %s at %s', [$formatTimestamp($approval['approved_at']), $formatTime($approval['approved_at'])])
+                . "\n"
+                . $autoApprovalReasonLabel((string)($approval['auto_approval_reason'] ?? ''));
         }
 
         return $l->t('Approved by %s on %s at %s', [$approval['approvedDisplayName'], $formatTimestamp($approval['approved_at']), $formatTime($approval['approved_at'])]);
