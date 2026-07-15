@@ -23,6 +23,7 @@ use Throwable;
 class ApprovalService
 {
     public const STATUS_PENDING_DETECTION = 'pending_detection';
+    public const STATUS_DUPLICATE_CONFLICT = 'duplicate_conflict';
     public const STATUS_PENDING_APPROVAL = 'pending_approval';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
@@ -61,7 +62,9 @@ class ApprovalService
         foreach ($years as $year) {
             foreach ($this->reportService->reportForStaff($year, false, false, false) as $row) {
                 foreach ($row['dayRanges'] as $range) {
-                    $days = $this->dayValuesForRange($row['dayValues'] ?? [], $range['start'], $range['end']);
+                    $days = isset($range['dayValues']) && is_array($range['dayValues'])
+                        ? $range['dayValues']
+                        : $this->dayValuesForRange($row['dayValues'] ?? [], $range['start'], $range['end']);
                     if (count($days) === 0) {
                         continue;
                     }
@@ -69,7 +72,17 @@ class ApprovalService
                     $sourceKey = (string)($range['sourceKey'] ?? '');
                     $fingerprint = $this->fingerprint($row['userId'], $year, $range['start'], $range['end'], $days, $sourceKey);
                     $seenFingerprints[] = $fingerprint;
-                    $this->upsertRequest($row['userId'], $year, $range['start'], $range['end'], $days, $sourceKey, $fingerprint, $now);
+                    $this->upsertRequest(
+                        $row['userId'],
+                        $year,
+                        $range['start'],
+                        $range['end'],
+                        $days,
+                        $sourceKey,
+                        $fingerprint,
+                        $now,
+                        (bool)($range['duplicateConflict'] ?? false)
+                    );
                 }
             }
         }
@@ -174,12 +187,14 @@ class ApprovalService
                     $map[$userId][$key] = $normalized;
                 }
 
-                $legacyKey = $this->approvalMapKey((string)$row['date_start'], (string)$row['date_end'], '');
-                if (
-                    !isset($map[$userId][$legacyKey])
-                    || $this->approvalStatusPriority($normalized['status']) > $this->approvalStatusPriority($map[$userId][$legacyKey]['status'])
-                ) {
-                    $map[$userId][$legacyKey] = $normalized;
+                if (trim((string)($row['source_key'] ?? '')) === '') {
+                    $legacyKey = $this->approvalMapKey((string)$row['date_start'], (string)$row['date_end'], '');
+                    if (
+                        !isset($map[$userId][$legacyKey])
+                        || $this->approvalStatusPriority($normalized['status']) > $this->approvalStatusPriority($map[$userId][$legacyKey]['status'])
+                    ) {
+                        $map[$userId][$legacyKey] = $normalized;
+                    }
                 }
             }
 
@@ -289,11 +304,13 @@ class ApprovalService
                     && (string)$range['end'] === (string)$request['date_end']
                     && (string)($range['sourceKey'] ?? '') === $sourceKey
                 ) {
-                    $currentDays = array_filter(
-                        $report[$index]['calendarDayValues'] ?? $report[$index]['dayValues'],
-                        static fn (mixed $value, string $day): bool => $day >= (string)$range['start'] && $day <= (string)$range['end'],
-                        ARRAY_FILTER_USE_BOTH
-                    );
+                    $currentDays = isset($range['dayValues']) && is_array($range['dayValues'])
+                        ? $range['dayValues']
+                        : array_filter(
+                            $report[$index]['calendarDayValues'] ?? $report[$index]['dayValues'],
+                            static fn (mixed $value, string $day): bool => $day >= (string)$range['start'] && $day <= (string)$range['end'],
+                            ARRAY_FILTER_USE_BOTH
+                        );
                     ksort($currentDays);
                     $bookedDays = $request['days'];
                     ksort($bookedDays);
@@ -353,7 +370,9 @@ class ApprovalService
                     continue;
                 }
 
-                $days = $this->dayValuesForRange($row['dayValues'], $start, $end);
+                $days = isset($range['dayValues']) && is_array($range['dayValues'])
+                    ? $range['dayValues']
+                    : $this->dayValuesForRange($row['dayValues'], $start, $end);
                 $fingerprint = $this->fingerprint($userId, $year, $start, $end, $days, $sourceKey);
                 $currentRequest = $this->requestByFingerprint($fingerprint);
                 if ($currentRequest !== null && (int)$currentRequest['id'] !== (int)$request['id']) {
@@ -499,9 +518,23 @@ class ApprovalService
                 $range['approval'] = $this->selectApprovalForRange(
                     $exactApproval,
                     $legacyApproval,
-                    $row['calendarDayValues'] ?? $row['dayValues'],
+                    $range['dayValues'] ?? $row['calendarDayValues'] ?? $row['dayValues'],
                     $range
                 );
+                if (
+                    (bool)($range['duplicateConflict'] ?? false)
+                    && (
+                        $range['approval'] === null
+                        || in_array((string)$range['approval']['status'], [
+                            self::STATUS_PENDING_DETECTION,
+                            self::STATUS_PENDING_APPROVAL,
+                            self::STATUS_DUPLICATE_CONFLICT,
+                        ], true)
+                    )
+                ) {
+                    $range['approval'] ??= ['id' => 0];
+                    $range['approval']['status'] = self::STATUS_DUPLICATE_CONFLICT;
+                }
             }
             unset($range);
         }
@@ -601,7 +634,17 @@ class ApprovalService
         $this->notifyRequesterRejected($request);
     }
 
-    private function upsertRequest(string $userId, int $year, string $start, string $end, array $days, string $sourceKey, string $fingerprint, int $now): void
+    private function upsertRequest(
+        string $userId,
+        int $year,
+        string $start,
+        string $end,
+        array $days,
+        string $sourceKey,
+        string $fingerprint,
+        int $now,
+        bool $duplicateConflict = false
+    ): void
     {
         $existing = $this->requestByFingerprint($fingerprint);
         $dayListJson = json_encode($days, JSON_THROW_ON_ERROR);
@@ -621,7 +664,9 @@ class ApprovalService
                     'days_count' => $qb->createNamedParameter((int)round($daysCountHundredths / 100), IQueryBuilder::PARAM_INT),
                     'days_count_hundredths' => $qb->createNamedParameter($daysCountHundredths, IQueryBuilder::PARAM_INT),
                     'day_list_json' => $qb->createNamedParameter($dayListJson),
-                    'status' => $qb->createNamedParameter(self::STATUS_PENDING_DETECTION),
+                    'status' => $qb->createNamedParameter(
+                        $duplicateConflict ? self::STATUS_DUPLICATE_CONFLICT : self::STATUS_PENDING_DETECTION
+                    ),
                     'first_seen_at' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
                     'last_seen_at' => $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT),
                     'notified_at' => $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT),
@@ -634,13 +679,65 @@ class ApprovalService
             return;
         }
 
+        $status = (string)$existing['status'];
+        if ($duplicateConflict) {
+            if ($status === self::STATUS_DUPLICATE_CONFLICT) {
+                $qb = $this->db->getQueryBuilder();
+                $qb->update('vacation_requests')
+                    ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
+                $qb->executeStatement();
+                return;
+            }
+
+            if (in_array($status, [
+                self::STATUS_APPROVED,
+                self::STATUS_CHANGED_AFTER_APPROVAL,
+                self::STATUS_CANCELLATION_PENDING,
+                self::STATUS_APPROVED_MISSING,
+                self::STATUS_REJECTED,
+            ], true)) {
+                $qb = $this->db->getQueryBuilder();
+                $qb->update('vacation_requests')
+                    ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                    ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
+                $qb->executeStatement();
+                return;
+            }
+
+            $qb = $this->db->getQueryBuilder();
+            $qb->update('vacation_requests')
+                ->set('status', $qb->createNamedParameter(self::STATUS_DUPLICATE_CONFLICT))
+                ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                ->set('notified_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
+            $qb->executeStatement();
+            return;
+        }
+
+        if ($status === self::STATUS_DUPLICATE_CONFLICT) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->update('vacation_requests')
+                ->set('status', $qb->createNamedParameter(self::STATUS_PENDING_DETECTION))
+                ->set('first_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                ->set('last_seen_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                ->set('notified_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                ->set('approved_at', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                ->set('auto_approved', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT))
+                ->set('auto_approval_reason', $qb->createNamedParameter(null))
+                ->set('updated_at', $qb->createNamedParameter($now, IQueryBuilder::PARAM_INT))
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter((int)$existing['id'], IQueryBuilder::PARAM_INT)));
+            $qb->executeStatement();
+            return;
+        }
+
         $autoApprovalReason = $this->autoApprovalReason($userId);
         if ($autoApprovalReason !== null && (string)$existing['status'] === self::STATUS_PENDING_APPROVAL) {
             $this->autoApproveRequest($existing, $autoApprovalReason, $now);
             return;
         }
 
-        $status = (string)$existing['status'];
         if (in_array($status, [self::STATUS_CANCELLATION_PENDING, self::STATUS_APPROVED_MISSING, self::STATUS_CHANGED_AFTER_APPROVAL], true)) {
             $requestId = (int)$existing['id'];
             $this->runInTransaction(function () use ($requestId, $now): void {
@@ -1199,6 +1296,7 @@ class ApprovalService
         return match ($status) {
             self::STATUS_APPROVED,
             self::STATUS_REJECTED => 60,
+            self::STATUS_DUPLICATE_CONFLICT => 55,
             self::STATUS_PENDING_APPROVAL => 50,
             self::STATUS_PENDING_DETECTION => 30,
             self::STATUS_CANCELLATION_PENDING,
@@ -1701,6 +1799,7 @@ class ApprovalService
         return match ($status) {
             self::STATUS_APPROVED,
             self::STATUS_REJECTED => 60,
+            self::STATUS_DUPLICATE_CONFLICT => 55,
             self::STATUS_PENDING_APPROVAL => 50,
             self::STATUS_CANCELLATION_PENDING,
             self::STATUS_APPROVED_MISSING => 45,

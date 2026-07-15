@@ -29,6 +29,7 @@ Backbone or legacy `OC.*` menu APIs. Database access uses the public query build
 - Queues pending-approval, automatic-approval, approval and rejection emails so web requests do not wait for SMTP delivery.
 - Employee status emails can be disabled temporarily while testing.
 - Keeps approval periods separated by calendar entry UID, so adjacent but separate vacation entries are not merged into one approval.
+- Detects overlapping vacation entries from different calendar UIDs. Duplicate calendar days are charged only once, while the additional approval remains blocked until one overlapping calendar entry is removed.
 - Keeps approved days reserved if their calendar entry is later changed or removed. Only a calendar manager can confirm a cancellation and release those days.
 - Stores manager decisions in an append-only audit table and every approved version as an immutable, hashed revision snapshot.
 - The calendar API returns active objects only. Previously approved entries remain booked when they disappear and require an explicit cancellation decision.
@@ -197,6 +198,13 @@ automatic-approval email. Approvers are not notified for these requests.
 Approval requests are keyed by the calendar entry UID in addition to their date range.
 This keeps adjacent but separate entries, for example an already approved half day and
 a newly entered multi-day vacation directly before it, as separate approval periods.
+
+Overlapping vacation entries with different calendar UIDs are kept as separate periods
+and receive the `duplicate_conflict` status unless one source is already an approved or
+rejected booking. Their shared calendar days are charged only once. Duplicate conflicts
+cannot be approved manually, in bulk or automatically. After one overlapping calendar
+entry is removed, the remaining unresolved period starts the normal stabilization wait
+from the beginning.
 
 Mail notifications are written to `oc_vacation_mail_queue` first. The app background
 job sends queued mail in small batches on every regular Nextcloud cron run, while

@@ -180,11 +180,13 @@ class VacationRevisionService
                     continue;
                 }
 
-                $days = array_filter(
-                    $row['dayValues'] ?? [],
-                    static fn (mixed $value, string $day): bool => $day >= (string)$range['start'] && $day <= (string)$range['end'],
-                    ARRAY_FILTER_USE_BOTH
-                );
+                $days = isset($range['dayValues']) && is_array($range['dayValues'])
+                    ? $range['dayValues']
+                    : array_filter(
+                        $row['dayValues'] ?? [],
+                        static fn (mixed $value, string $day): bool => $day >= (string)$range['start'] && $day <= (string)$range['end'],
+                        ARRAY_FILTER_USE_BOTH
+                    );
                 ksort($days);
                 $current = [
                     'source_key' => (string)($range['sourceKey'] ?? ''),

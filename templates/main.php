@@ -174,6 +174,10 @@ $approvalLabel = static function (?array $approval) use ($l, $formatTimestamp, $
         return $l->t('Waiting for stabilization');
     }
 
+    if ($approval['status'] === 'duplicate_conflict') {
+        return $l->t('Duplicate calendar entry. Remove one of the overlapping entries before approval.');
+    }
+
     if ($approval['status'] === 'changed_after_approval') {
         return $l->t('Changed after approval');
     }
@@ -212,6 +216,7 @@ $approvalSymbol = static function (?array $approval): string {
         'approved' => '&#10003;',
         'pending_approval' => '&#8594;',
         'pending_detection' => '&hellip;',
+        'duplicate_conflict' => '!',
         'rejected' => '!',
         'changed_after_approval',
         'cancellation_pending',
@@ -235,12 +240,13 @@ $keepBookingAction = static function (int $requestId) use ($keepBookingUrlTempla
 $pendingApprovalCount = static function (array $ranges): int {
     return count(array_filter($ranges, static function (array $range): bool {
         $approval = $range['approval'] ?? null;
-        return is_array($approval) && in_array($approval['status'], ['pending_approval', 'changed_after_approval', 'cancellation_pending'], true);
+        return is_array($approval) && in_array($approval['status'], ['duplicate_conflict', 'pending_approval', 'changed_after_approval', 'cancellation_pending'], true);
     }));
 };
 $summaryApprovalForRanges = static function (array $ranges): ?array {
     $priority = [
         'rejected' => 60,
+        'duplicate_conflict' => 58,
         'cancellation_pending' => 55,
         'approved_missing' => 52,
         'changed_after_approval' => 50,
@@ -464,10 +470,13 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         <?php
                                         $approval = $range['approval'] ?? null;
                                         $rangeHasActiveAction = $activeActionId > 0 && $approval !== null && (int)$approval['id'] === $activeActionId;
+                                        $hasRangeDayValues = isset($range['dayValues']) && is_array($range['dayValues']);
                                         $displayDayValues = isset($range['bookedDayValues']) && is_array($range['bookedDayValues'])
                                             ? $range['bookedDayValues']
-                                            : ($row['calendarDayValues'] ?? $row['dayValues']);
-                                        $rangeDays = isset($range['bookedDayValues']) ? array_keys($displayDayValues) : $daysForRange($row['days'], $range);
+                                            : ($hasRangeDayValues ? $range['dayValues'] : ($row['calendarDayValues'] ?? $row['dayValues']));
+                                        $rangeDays = isset($range['bookedDayValues']) || $hasRangeDayValues
+                                            ? array_keys($displayDayValues)
+                                            : $daysForRange($row['days'], $range);
                                         $rangeDayCount = array_sum(array_map(static fn (string $day): float => (float)($displayDayValues[$day] ?? 1), $rangeDays));
                                         $rangeDayLabels = array_map(static function (string $day) use ($formatDate, $formatDayAmount, $displayDayValues): string {
                                             $label = $formatDate($day);

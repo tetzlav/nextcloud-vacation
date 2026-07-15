@@ -107,8 +107,9 @@ class VacationReportService
             $events = 0;
             $matchedEvents = [];
             $apiDebugSamples = [];
-            $dayLastModified = [];
             $daySources = [];
+            $sourceDayValues = [];
+            $sourceDayLastModified = [];
             $displayName = $this->displayName($userId);
 
             if ($calendar !== null) {
@@ -134,11 +135,16 @@ class VacationReportService
                                 $currentValue = $dayValues[$day] ?? null;
                                 if ($currentValue === null || $eventValue > $currentValue) {
                                     $dayValues[$day] = $eventValue;
-                                    $daySources[$day] = [$sourceKey => true];
-                                } elseif ($eventValue === $currentValue) {
-                                    $daySources[$day][$sourceKey] = true;
                                 }
-                                $dayLastModified[$day] = max($dayLastModified[$day] ?? 0, $lastModified);
+                                $daySources[$day][$sourceKey] = true;
+                                $sourceDayValues[$sourceKey][$day] = max(
+                                    (float)($sourceDayValues[$sourceKey][$day] ?? 0.0),
+                                    $eventValue
+                                );
+                                $sourceDayLastModified[$sourceKey][$day] = max(
+                                    (int)($sourceDayLastModified[$sourceKey][$day] ?? 0),
+                                    $lastModified
+                                );
                             }
                             if ($debug) {
                                 $matchedEvents[] = $this->debugApiEvent($event, $eventDays, $timezone, $lastModified);
@@ -179,11 +185,16 @@ class VacationReportService
                             $currentValue = $dayValues[$day] ?? null;
                             if ($currentValue === null || $eventValue > $currentValue) {
                                 $dayValues[$day] = $eventValue;
-                                $daySources[$day] = [$sourceKey => true];
-                            } elseif ($eventValue === $currentValue) {
-                                $daySources[$day][$sourceKey] = true;
                             }
-                            $dayLastModified[$day] = max($dayLastModified[$day] ?? 0, $lastModified);
+                            $daySources[$day][$sourceKey] = true;
+                            $sourceDayValues[$sourceKey][$day] = max(
+                                (float)($sourceDayValues[$sourceKey][$day] ?? 0.0),
+                                $eventValue
+                            );
+                            $sourceDayLastModified[$sourceKey][$day] = max(
+                                (int)($sourceDayLastModified[$sourceKey][$day] ?? 0),
+                                $lastModified
+                            );
                         }
                         if ($debug) {
                             $matchedEvents[] = $this->debugEvent($event, $eventDays, $timezone, false, 0, $lastModified);
@@ -194,7 +205,7 @@ class VacationReportService
 
             ksort($dayValues);
             $calendarDayValues = $dayValues;
-            $dayRanges = $this->dayRanges(array_keys($dayValues), $dayLastModified, $daySources);
+            $dayRanges = $this->dayRanges($sourceDayValues, $sourceDayLastModified, $daySources);
             if ($includeBookedBalance) {
                 foreach ($this->bookedDayValues($userId, $year) as $day => $value) {
                     $dayValues[$day] = max((float)($dayValues[$day] ?? 0.0), (float)$value);
@@ -1106,57 +1117,101 @@ class VacationReportService
         return count($timestamps) === 0 ? 0 : max($timestamps);
     }
 
-    private function sourceSignature(array $daySources, string $day): string
+    private function dayRanges(array $sourceDayValues, array $sourceDayLastModified, array $daySources): array
     {
-        $sources = array_keys($daySources[$day] ?? []);
-        sort($sources, SORT_STRING);
-
-        if (count($sources) <= 1) {
-            return $sources[0] ?? '';
-        }
-
-        return hash('sha256', implode(',', $sources));
-    }
-
-    private function dayRanges(array $days, array $dayLastModified, array $daySources): array
-    {
-        if (count($days) === 0) {
-            return [];
-        }
-
         $ranges = [];
-        $rangeStart = $days[0];
-        $rangeSourceKey = $this->sourceSignature($daySources, $days[0]);
-        $previous = new DateTimeImmutable($days[0]);
-
-        foreach (array_slice($days, 1) as $day) {
-            $current = new DateTimeImmutable($day);
-            $gap = (int)$previous->diff($current)->format('%a');
-            $sourceKey = $this->sourceSignature($daySources, $day);
-
-            if (($gap > 1 && !($previous->format('N') === '5' && $gap === 3)) || $sourceKey !== $rangeSourceKey) {
-                $rangeEnd = $previous->format('Y-m-d');
-                $ranges[] = [
-                    'start' => $rangeStart,
-                    'end' => $rangeEnd,
-                    'sourceKey' => $rangeSourceKey,
-                    'lastModified' => $this->rangeLastModified($dayLastModified, $rangeStart, $rangeEnd),
-                ];
-                $rangeStart = $day;
-                $rangeSourceKey = $sourceKey;
+        foreach ($sourceDayValues as $sourceKey => $values) {
+            if (!is_array($values) || count($values) === 0) {
+                continue;
             }
 
-            $previous = $current;
+            ksort($values);
+            $days = array_keys($values);
+            $rangeStart = $days[0];
+            $previous = new DateTimeImmutable($days[0]);
+
+            foreach (array_slice($days, 1) as $day) {
+                $current = new DateTimeImmutable($day);
+                $gap = (int)$previous->diff($current)->format('%a');
+
+                if ($gap > 1 && !($previous->format('N') === '5' && $gap === 3)) {
+                    $ranges[] = $this->sourceRange(
+                        (string)$sourceKey,
+                        $rangeStart,
+                        $previous->format('Y-m-d'),
+                        $values,
+                        $sourceDayLastModified[(string)$sourceKey] ?? [],
+                        $daySources
+                    );
+                    $rangeStart = $day;
+                }
+
+                $previous = $current;
+            }
+
+            $ranges[] = $this->sourceRange(
+                (string)$sourceKey,
+                $rangeStart,
+                $previous->format('Y-m-d'),
+                $values,
+                $sourceDayLastModified[(string)$sourceKey] ?? [],
+                $daySources
+            );
         }
 
-        $rangeEnd = $previous->format('Y-m-d');
-        $ranges[] = [
-            'start' => $rangeStart,
-            'end' => $rangeEnd,
-            'sourceKey' => $rangeSourceKey,
-            'lastModified' => $this->rangeLastModified($dayLastModified, $rangeStart, $rangeEnd),
-        ];
+        usort($ranges, static fn (array $left, array $right): int => [
+            $left['start'],
+            $left['end'],
+            $left['sourceKey'],
+        ] <=> [
+            $right['start'],
+            $right['end'],
+            $right['sourceKey'],
+        ]);
 
         return $ranges;
+    }
+
+    private function sourceRange(
+        string $sourceKey,
+        string $start,
+        string $end,
+        array $sourceDayValues,
+        array $sourceLastModified,
+        array $daySources
+    ): array {
+        $values = array_filter(
+            $sourceDayValues,
+            static fn (mixed $value, string $day): bool => $day >= $start && $day <= $end,
+            ARRAY_FILTER_USE_BOTH
+        );
+        ksort($values);
+
+        $duplicateDays = [];
+        $duplicateSources = [];
+        foreach (array_keys($values) as $day) {
+            $sources = array_keys($daySources[$day] ?? []);
+            if (count($sources) <= 1) {
+                continue;
+            }
+
+            $duplicateDays[] = $day;
+            foreach ($sources as $duplicateSource) {
+                if ($duplicateSource !== $sourceKey) {
+                    $duplicateSources[$duplicateSource] = true;
+                }
+            }
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'sourceKey' => $sourceKey,
+            'lastModified' => $this->rangeLastModified($sourceLastModified, $start, $end),
+            'dayValues' => array_map('floatval', $values),
+            'duplicateConflict' => count($duplicateDays) > 0,
+            'duplicateDays' => $duplicateDays,
+            'duplicateSourceKeys' => array_keys($duplicateSources),
+        ];
     }
 }

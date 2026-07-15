@@ -444,6 +444,7 @@
 }
 
 .vacation-table td span.period-status-marker.approval-rejected,
+.vacation-table td span.period-status-marker.approval-duplicate-conflict,
 .vacation-table td span.period-status-marker.approval-changed-after-approval,
 .vacation-table td span.period-status-marker.approval-cancellation-pending,
 .vacation-table td span.period-status-marker.approval-approved-missing,
@@ -452,6 +453,7 @@
 }
 
 .period-row.approval-rejected .day-ranges > summary,
+.period-row.approval-duplicate-conflict .day-ranges > summary,
 .period-row.approval-changed-after-approval .day-ranges > summary,
 .period-row.approval-cancellation-pending .day-ranges > summary,
 .period-row.approval-approved-missing .day-ranges > summary,

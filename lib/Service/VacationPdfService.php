@@ -21,17 +21,27 @@ class VacationPdfService
 
     public function render(array $row, int $year, string $timeZone): string
     {
-        $periods = [];
+        $periodsByDays = [];
         foreach ($row['dayRanges'] as $range) {
             $days = $this->rangeDays($row, $range);
-            $periods[] = [
+            ksort($days);
+            $period = [
                 'start' => (string)$range['start'],
                 'end' => (string)$range['end'],
                 'label' => $this->dateRange((string)$range['start'], (string)$range['end']),
                 'days' => array_sum($days),
                 'approvalLines' => $this->approvalLines($range['approval'] ?? null, $timeZone),
+                'approvalStatus' => (string)($range['approval']['status'] ?? ''),
             ];
+            $key = json_encode($days, JSON_THROW_ON_ERROR);
+            if (
+                !isset($periodsByDays[$key])
+                || $this->approvalPriority($period['approvalStatus']) > $this->approvalPriority($periodsByDays[$key]['approvalStatus'])
+            ) {
+                $periodsByDays[$key] = $period;
+            }
         }
+        $periods = array_values($periodsByDays);
 
         $baseEntitlement = (float)$row['baseEntitlement'];
         $carryover = (float)$row['carryover'];
@@ -76,12 +86,28 @@ class VacationPdfService
             return array_map('floatval', $range['bookedDayValues']);
         }
 
+        if (isset($range['dayValues']) && is_array($range['dayValues'])) {
+            return array_map('floatval', $range['dayValues']);
+        }
+
         $values = $row['dayValues'] ?? $row['calendarDayValues'] ?? [];
         return array_map('floatval', array_filter(
             $values,
             static fn (mixed $value, string $day): bool => $day >= (string)$range['start'] && $day <= (string)$range['end'],
             ARRAY_FILTER_USE_BOTH
         ));
+    }
+
+    private function approvalPriority(string $status): int
+    {
+        return match ($status) {
+            'approved' => 50,
+            'rejected' => 40,
+            'pending_approval', 'changed_after_approval' => 30,
+            'pending_detection' => 20,
+            'duplicate_conflict' => 10,
+            default => 0,
+        };
     }
 
     private function date(string $day): string
@@ -141,6 +167,7 @@ class VacationPdfService
         return [match ($status) {
             ApprovalService::STATUS_PENDING_APPROVAL => $this->l10n->t('Waiting for approval'),
             ApprovalService::STATUS_PENDING_DETECTION => $this->l10n->t('Waiting for stabilization'),
+            ApprovalService::STATUS_DUPLICATE_CONFLICT => $this->l10n->t('Duplicate calendar entry. Remove one of the overlapping entries before approval.'),
             ApprovalService::STATUS_CHANGED_AFTER_APPROVAL => $this->l10n->t('Changed after approval'),
             ApprovalService::STATUS_REJECTED => $this->l10n->t('Rejected'),
             ApprovalService::STATUS_CANCELLATION_PENDING => $this->l10n->t('Cancellation pending'),

@@ -97,6 +97,7 @@ OC.L10N.register(
         "Rejected by %s on %s at %s": "Abgelehnt von %s am %s um %s Uhr",
         "Waiting for approval": "Wartet auf Genehmigung",
         "Waiting for stabilization": "Wartet auf Stabilisierung",
+        "Duplicate calendar entry. Remove one of the overlapping entries before approval.": "Doppelter Kalendereintrag. Entferne vor der Genehmigung einen der überlappenden Einträge.",
         "Changed after approval": "Nach Genehmigung ge\u00e4ndert",
         "Approved booking is missing from the calendar. Cancellation awaiting confirmation.": "Der genehmigte Eintrag fehlt im Kalender. Die Stornierung wartet auf Best\u00e4tigung.",
         "Booking retained although the calendar entry is missing.": "Buchung beibehalten, obwohl der Kalendereintrag fehlt.",
