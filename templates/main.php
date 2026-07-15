@@ -475,9 +475,9 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         <?php endif; ?>
                                     </div>
                                 </details>
-                                <?php if ((float)$row['expiredCarryover'] > 0.0): ?>
-                                    <span class="carryover-expiry carryover-expired">
-                                        <?php p($l->t('%1$s expired on %2$s', [$formatDayAmount((float)$row['expiredCarryover']), $formatDate($row['carryoverExpiresAt'])])); ?>
+                                <?php if ($carryoverExpiryLabel !== ''): ?>
+                                    <span class="carryover-expiry <?php p(!$row['carryoverAvailable'] ? 'carryover-expired' : ''); ?>">
+                                        <?php p($carryoverExpiryLabel); ?>
                                     </span>
                                 <?php endif; ?>
                             <?php else: ?>
