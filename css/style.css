@@ -239,7 +239,7 @@
 }
 
 .vacation-col-user {
-    width: 240px;
+    width: 260px;
 }
 
 .vacation-col-balance {
@@ -547,17 +547,16 @@
     display: flex;
     gap: 6px 10px;
     margin-top: 5px;
-    max-width: 100%;
     padding-inline-start: 12px;
+    width: max-content;
 }
 
 .approval-integrity-content code {
     color: var(--color-text-maxcontrast);
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     font-family: "DejaVu Sans Mono", "Liberation Mono", Consolas, monospace;
     font-size: var(--vacation-font-size-small);
-    min-width: 0;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
 }
 
 .approval-hash-copy {
