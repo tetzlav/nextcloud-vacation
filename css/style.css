@@ -239,7 +239,7 @@
 }
 
 .vacation-col-user {
-    width: 260px;
+    width: 240px;
 }
 
 .vacation-col-balance {
@@ -510,7 +510,7 @@
     align-items: center;
     display: grid;
     gap: 8px;
-    grid-template-columns: minmax(0, max-content) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     margin: 6px 0 0;
     padding-inline-start: 12px;
 }
@@ -626,7 +626,7 @@
 
 @media (max-width: 1100px) {
     .approval-state {
-        grid-template-columns: minmax(0, max-content);
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .approval-state form,
