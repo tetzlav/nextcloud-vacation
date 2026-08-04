@@ -591,20 +591,22 @@
     align-items: center;
     display: grid;
     gap: 8px;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
     margin: 6px 0 0;
     max-width: 100%;
     padding-inline-start: 12px;
-    width: fit-content;
+    width: 100%;
 }
 
 .approval-state .approval-label {
     color: var(--color-main-text);
     display: block;
     font-size: var(--vacation-font-size-body);
+    grid-column: 1 / -1;
     margin: 0;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
     white-space: pre-line;
 }
 
