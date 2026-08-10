@@ -570,7 +570,11 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                                     <?php p($formatDateRange($range)); ?> <span class="period-day-count">(<?php p($formatDayAmount($rangeDayCount)); ?> <?php p($dayUnit($rangeDayCount)); ?>)</span>
                                                     <span class="period-status-marker <?php p($approvalClass($approval)); ?>" title="<?php p($approvalLabel($approval)); ?>" role="img" aria-label="<?php p($approvalLabel($approval)); ?>"><?php print_unescaped($approvalSymbol($approval)); ?></span>
                                                 </summary>
-                                                <div><?php p(implode(', ', $rangeDayLabels)); ?></div>
+                                                <ul class="period-day-list">
+                                                    <?php foreach ($rangeDayLabels as $rangeDayLabel): ?>
+                                                        <li><?php p($rangeDayLabel); ?></li>
+                                                    <?php endforeach; ?>
+                                                </ul>
                                                 <div class="approval-state <?php p($approvalClass($approval)); ?>">
                                                     <span class="approval-label"><?php p($approvalLabel($approval)); ?></span>
                                                     <?php if (
