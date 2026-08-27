@@ -43,10 +43,14 @@ ob_start();
 require dirname(__DIR__) . '/templates/vacation_form.php';
 $html = (string)ob_get_clean();
 
-foreach (['Special leave', 'Moving house', 'Credited on Jul 15, 2026', 'by Calendar Manager', $hash, 'Cancelled: Aug 14, 2026', 'Cancellation audit #17'] as $expected) {
+foreach (['Special leave', 'Moving house', 'Credited on Jul 15, 2026', 'by Calendar Manager', $hash, 'Cancelled', 'Aug 14, 2026', 'Cancellation audit #17'] as $expected) {
     if (!str_contains($html, $expected)) {
         throw new RuntimeException('PDF template omitted special-leave value: ' . $expected);
     }
+}
+
+if (!str_contains($html, 'class="cancellation-period"')) {
+    throw new RuntimeException('PDF template does not separate the cancellation date from its label.');
 }
 
 echo "Special-leave PDF template tests passed.\n";

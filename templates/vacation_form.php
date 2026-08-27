@@ -27,6 +27,10 @@ $e = static fn (mixed $value): string => htmlspecialchars((string)$value, ENT_QU
         .ledger .period td { font-weight: normal; }
         .ledger tr { page-break-inside: avoid; }
         .ledger .period .description { padding-left: 2mm; white-space: nowrap; }
+        .ledger .cancellation-row .description { white-space: normal; }
+        .ledger .cancellation-row .description span { display: block; }
+        .ledger .cancellation-row .cancellation-label { font-weight: bold; }
+        .ledger .cancellation-row .cancellation-period { font-weight: normal; white-space: nowrap; }
         .ledger .special-leave-row .description span { display: block; }
         .ledger .special-leave-row .special-leave-reason { font-weight: normal; }
         .approval-line { display: block; font-size: 7pt; line-height: 1.15; }
@@ -105,7 +109,10 @@ $e = static fn (mixed $value): string => htmlspecialchars((string)$value, ENT_QU
             <?php endforeach; ?>
             <?php foreach ($data['cancelledPeriods'] ?? [] as $period): ?>
                 <tr class="period cancellation-row">
-                    <td class="description"><?php echo $e($l->t('Cancelled: %s', [$period['label']])); ?></td>
+                    <td class="description">
+                        <span class="cancellation-label"><?php echo $e(rtrim($l->t('Cancelled: %s', ['']), " :")); ?></span>
+                        <span class="cancellation-period"><?php echo $e($period['label']); ?></span>
+                    </td>
                     <td class="number"></td>
                     <td class="number debit"></td>
                     <td class="approval">
