@@ -81,6 +81,9 @@ class PageController extends Controller
 
         $report = $this->approvalService->applyBookedDaysToReport($report, $year);
         $report = $this->approvalService->attachApprovalsToReport($report, $year);
+        if ($this->approvalService->cancellationJournalEnabled()) {
+            $report = $this->approvalService->attachConfirmedCancellationsToReport($report, $year);
+        }
         $pdfUrls = [];
         $autoApprovalUsers = [];
         foreach ($report as $row) {

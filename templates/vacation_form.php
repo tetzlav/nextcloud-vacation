@@ -103,6 +103,19 @@ $e = static fn (mixed $value): string => htmlspecialchars((string)$value, ENT_QU
                     <td class="number balance"></td>
                 </tr>
             <?php endforeach; ?>
+            <?php foreach ($data['cancelledPeriods'] ?? [] as $period): ?>
+                <tr class="period cancellation-row">
+                    <td class="description"><?php echo $e($l->t('Cancelled: %s', [$period['label']])); ?></td>
+                    <td class="number"></td>
+                    <td class="number debit"></td>
+                    <td class="approval">
+                        <?php foreach ($period['journalLines'] as $line): ?>
+                            <span class="approval-line"><?php echo $e($line); ?></span>
+                        <?php endforeach; ?>
+                    </td>
+                    <td class="number balance"></td>
+                </tr>
+            <?php endforeach; ?>
             <?php if ($data['expiredCarryover'] > 0): ?>
                 <tr class="period">
                     <td class="description"><?php echo $e($l->t('Expired carryover')); ?></td>

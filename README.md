@@ -194,6 +194,10 @@ notifications are enabled, postings and reason corrections queue localized statu
 The yearly PDF lists each effective special-leave booking directly below the annual
 vacation entitlement with its current reason, posting or correction date, manager and hash.
 
+The admin setting **Cancellation journal** optionally adds confirmed cancellations to
+the yearly web overview and PDF. These entries show the original period and day count,
+confirmation time, manager, optional reason and audit ID, but never affect the balance.
+
 ## Approval Workflow
 
 A background job scans the configured staff calendars every 15 minutes. Opening the

@@ -78,6 +78,12 @@ if ($staffGroup !== '' && !isset($groups[$staffGroup])) {
         </div>
 
         <div class="vacation-settings-row">
+            <label for="nextcloud-vacation-cancellation-journal"><?php p($l->t('Cancellation journal')); ?></label>
+            <input id="nextcloud-vacation-cancellation-journal" type="checkbox" name="cancellation_journal_enabled" value="1" <?php if ($_['cancellationJournalEnabled']) { print_unescaped('checked'); } ?>>
+            <div class="settings-hint"><?php p($l->t('Show confirmed cancellations in the yearly overview and PDF without including them in the vacation balance.')); ?></div>
+        </div>
+
+        <div class="vacation-settings-row">
             <label for="nextcloud-vacation-staff-group"><?php p($l->t('Staff group')); ?></label>
             <select id="nextcloud-vacation-staff-group" name="staff_group">
                 <?php foreach ($groups as $groupId => $groupName): ?>

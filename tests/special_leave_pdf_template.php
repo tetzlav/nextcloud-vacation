@@ -28,6 +28,10 @@ $data = [
         'postingLines' => ['Credited on Jul 15, 2026', 'by Calendar Manager', 'SHA-256 ' . $hash],
     ]],
     'periods' => [],
+    'cancelledPeriods' => [[
+        'label' => 'Aug 14, 2026',
+        'journalLines' => ['Confirmed on Jul 15, 2026 at 10:30', 'by Calendar Manager', 'Cancellation audit #17'],
+    ]],
     'expiredCarryover' => 0.0,
     'totalCredits' => 32.0,
     'totalDebits' => 0.0,
@@ -39,7 +43,7 @@ ob_start();
 require dirname(__DIR__) . '/templates/vacation_form.php';
 $html = (string)ob_get_clean();
 
-foreach (['Special leave', 'Moving house', 'Credited on Jul 15, 2026', 'by Calendar Manager', $hash] as $expected) {
+foreach (['Special leave', 'Moving house', 'Credited on Jul 15, 2026', 'by Calendar Manager', $hash, 'Cancelled: Aug 14, 2026', 'Cancellation audit #17'] as $expected) {
     if (!str_contains($html, $expected)) {
         throw new RuntimeException('PDF template omitted special-leave value: ' . $expected);
     }

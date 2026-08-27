@@ -674,6 +674,24 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
+                                <?php $cancelledPeriods = $row['cancelledPeriods'] ?? []; ?>
+                                <?php if (count($cancelledPeriods) > 0): ?>
+                                    <details class="cancellation-journal">
+                                        <summary><?php p($l->t('Confirmed cancellations (%s)', [count($cancelledPeriods)])); ?></summary>
+                                        <div class="cancellation-journal-list">
+                                            <?php foreach ($cancelledPeriods as $cancelledPeriod): ?>
+                                                <div class="cancellation-journal-entry">
+                                                    <strong><?php p($formatDateRange($cancelledPeriod)); ?> <span>(<?php p($formatDayAmount((float)$cancelledPeriod['days'])); ?> <?php p($dayUnit((float)$cancelledPeriod['days'])); ?>)</span></strong>
+                                                    <small><?php p($l->t('Cancellation confirmed on %1$s by %2$s', [$formatTimestamp((int)$cancelledPeriod['confirmedAt']), $cancelledPeriod['confirmedDisplayName']])); ?></small>
+                                                    <?php if ((string)$cancelledPeriod['reason'] !== ''): ?>
+                                                        <small><?php p($l->t('Reason: %s', [$cancelledPeriod['reason']])); ?></small>
+                                                    <?php endif; ?>
+                                                    <small><?php p($l->t('Cancellation audit #%s', [(int)$cancelledPeriod['auditId']])); ?></small>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </details>
+                                <?php endif; ?>
                             </details>
                             <a class="button vacation-pdf-button" href="<?php p($_['pdfUrls'][$row['userId']] ?? $_['pdfUrl']); ?>"><?php p($l->t('Download vacation summary PDF')); ?></a>
                             </div>

@@ -66,6 +66,9 @@ class PdfController extends Controller
         $report = $this->reportService->reportForUser($targetUserId, $year, false, false);
         $report = $this->approvalService->applyBookedDaysToReport($report, $year);
         $report = $this->approvalService->attachApprovalsToReport($report, $year);
+        if ($this->approvalService->cancellationJournalEnabled()) {
+            $report = $this->approvalService->attachConfirmedCancellationsToReport($report, $year);
+        }
         if (count($report) === 0) {
             return new DataResponse(['error' => 'No vacation data found'], 404);
         }

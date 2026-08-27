@@ -46,6 +46,7 @@ class Admin implements ISettings
             'autoApprovalUsers' => $this->approvalService->autoApprovalUsers(),
             'autoApprovalUserCandidates' => $this->approvalService->autoApprovalUserCandidates(),
             'employeeNotificationsEnabled' => $this->approvalService->employeeNotificationsEnabled(),
+            'cancellationJournalEnabled' => $this->approvalService->cancellationJournalEnabled(),
             'carryoverExpires' => $this->reportService->carryoverExpiresMonthDay(),
             'displayTimezone' => $this->config->getAppValue(Application::APP_ID, 'display_timezone', ''),
             'timezones' => \DateTimeZone::listIdentifiers(),

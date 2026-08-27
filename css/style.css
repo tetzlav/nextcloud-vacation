@@ -910,6 +910,30 @@
     font-weight: 600;
 }
 
+.cancellation-journal {
+    border-block-start: 1px solid var(--color-border);
+    margin-block-start: 12px !important;
+    padding-block-start: 8px;
+}
+
+.cancellation-journal-list {
+    display: grid;
+    gap: 8px;
+    margin: 8px 0 0 14px;
+}
+
+.cancellation-journal-entry {
+    border-inline-start: 2px solid var(--color-text-maxcontrast);
+    display: grid;
+    gap: 2px;
+    padding-inline-start: 8px;
+}
+
+.cancellation-journal-entry strong,
+.cancellation-journal-entry small {
+    overflow-wrap: anywhere;
+}
+
 .special-leave-success {
     color: var(--color-success);
 }

@@ -117,6 +117,11 @@ class ApprovalService
         return $this->config->getAppValue(Application::APP_ID, 'employee_notifications_enabled', '1') === '1';
     }
 
+    public function cancellationJournalEnabled(): bool
+    {
+        return $this->config->getAppValue(Application::APP_ID, 'cancellation_journal_enabled', '0') === '1';
+    }
+
     public function notifySpecialLeavePosted(array $entry): void
     {
         if (!$this->employeeNotificationsEnabled()) {
@@ -613,6 +618,51 @@ class ApprovalService
                 }
             }
             unset($range);
+        }
+        unset($row);
+
+        return $report;
+    }
+
+    public function attachConfirmedCancellationsToReport(array $report, int $year): array
+    {
+        $auditByRequest = $this->confirmedCancellationAuditForYear($year);
+        $cancellationsByUser = [];
+
+        foreach ($this->requestsForYear($year) as $request) {
+            $requestId = (int)$request['id'];
+            if ((string)$request['status'] !== self::STATUS_CANCELLED || !isset($auditByRequest[$requestId])) {
+                continue;
+            }
+
+            $audit = $auditByRequest[$requestId];
+            $actorId = trim((string)($audit['actor_id'] ?? ''));
+            $actor = $actorId === '' ? null : $this->userManager->get($actorId);
+            $cancellationsByUser[(string)$request['user_id']][] = [
+                'auditId' => (int)$audit['id'],
+                'requestId' => $requestId,
+                'start' => (string)$request['date_start'],
+                'end' => (string)$request['date_end'],
+                'days' => $this->requestDaysCount($request),
+                'dayValues' => $request['days'],
+                'confirmedAt' => (int)$audit['created_at'],
+                'confirmedBy' => $actorId,
+                'confirmedDisplayName' => $actor === null ? $actorId : ($actor->getDisplayName() ?: $actorId),
+                'reason' => trim((string)($audit['reason'] ?? '')),
+            ];
+        }
+
+        foreach ($report as &$row) {
+            $row['cancelledPeriods'] = $cancellationsByUser[(string)$row['userId']] ?? [];
+            usort($row['cancelledPeriods'], static fn (array $left, array $right): int => [
+                $left['start'],
+                $left['end'],
+                $left['requestId'],
+            ] <=> [
+                $right['start'],
+                $right['end'],
+                $right['requestId'],
+            ]);
         }
         unset($row);
 
@@ -1807,6 +1857,34 @@ class ApprovalService
             }
 
             return $requests;
+        } finally {
+            $result->closeCursor();
+        }
+    }
+
+    private function confirmedCancellationAuditForYear(int $year): array
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('audit.id', 'audit.request_id', 'audit.actor_id', 'audit.reason', 'audit.created_at')
+            ->from('vacation_request_audit', 'audit')
+            ->innerJoin(
+                'audit',
+                'vacation_requests',
+                'requests',
+                $qb->expr()->eq('requests.id', 'audit.request_id')
+            )
+            ->where($qb->expr()->eq('requests.year', $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->eq('audit.action', $qb->createNamedParameter('cancellation_confirmed')))
+            ->orderBy('audit.created_at', 'ASC')
+            ->addOrderBy('audit.id', 'ASC');
+
+        $result = $qb->executeQuery();
+        try {
+            $auditByRequest = [];
+            while (($row = $result->fetch()) !== false) {
+                $auditByRequest[(int)$row['request_id']] = $row;
+            }
+            return $auditByRequest;
         } finally {
             $result->closeCursor();
         }

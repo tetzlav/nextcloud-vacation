@@ -54,6 +54,13 @@ class VacationPdfService
             ],
             $row['specialLeaveEntries'] ?? []
         );
+        $cancelledPeriods = array_map(
+            fn (array $entry): array => $entry + [
+                'label' => $this->dateRange((string)$entry['start'], (string)$entry['end'], $l10n),
+                'journalLines' => $this->cancellationJournalLines($entry, $timeZone, $l10n),
+            ],
+            $row['cancelledPeriods'] ?? []
+        );
         $data = [
             'year' => $year,
             'displayName' => (string)$row['displayName'],
@@ -64,6 +71,7 @@ class VacationPdfService
             'specialLeaveEntries' => $specialLeaveEntries,
             'expiredCarryover' => $expiredCarryover,
             'periods' => $periods,
+            'cancelledPeriods' => $cancelledPeriods,
             'totalCredits' => $baseEntitlement + $carryover + $specialLeave,
             'totalDebits' => (float)$row['vacationDays'] + $expiredCarryover,
             'remaining' => (float)$row['remainingDays'],
@@ -159,6 +167,24 @@ class VacationPdfService
             $l10n->t('by %s', [(string)$entry['grantedDisplayName']]),
             'SHA-256 ' . (string)$entry['entry_hash'],
         ];
+    }
+
+    private function cancellationJournalLines(array $entry, string $timeZone, IL10N $l10n): array
+    {
+        $confirmedAt = (new DateTimeImmutable('@' . (int)$entry['confirmedAt']))
+            ->setTimezone(new DateTimeZone($timeZone));
+        $lines = [
+            $l10n->t('Confirmed on %1$s at %2$s', [
+                $this->date($confirmedAt->format('Y-m-d'), $l10n),
+                $confirmedAt->format('H:i'),
+            ]),
+            $l10n->t('by %s', [(string)$entry['confirmedDisplayName']]),
+        ];
+        if ((string)$entry['reason'] !== '') {
+            $lines[] = $l10n->t('Reason: %s', [(string)$entry['reason']]);
+        }
+        $lines[] = $l10n->t('Cancellation audit #%s', [(int)$entry['auditId']]);
+        return $lines;
     }
 
     private function approvalLines(mixed $approval, string $timeZone, IL10N $l10n): array

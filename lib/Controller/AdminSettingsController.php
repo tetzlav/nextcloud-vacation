@@ -36,6 +36,7 @@ class AdminSettingsController extends Controller
         $this->setCsvAppValue('auto_approval_groups');
         $this->setCsvAppValue('auto_approval_users');
         $this->setCheckboxAppValue('employee_notifications_enabled');
+        $this->setCheckboxAppValue('cancellation_journal_enabled');
         $this->setAppValue('staff_group');
         $this->setAppValue('calendar_uri');
         $this->setAppValue('calendar_displayname');
