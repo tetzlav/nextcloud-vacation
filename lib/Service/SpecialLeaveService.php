@@ -97,9 +97,33 @@ class SpecialLeaveService
         $result = $qb->executeQuery();
         try {
             $entries = [];
+            $corrections = [];
             while (($row = $result->fetch()) !== false) {
                 $entry = $this->normalizeEntry($row);
-                $entries[(string)$entry['user_id']][] = $entry;
+                if ((int)$entry['corrects_id'] > 0) {
+                    $corrections[] = $entry;
+                    continue;
+                }
+                $entries[(string)$entry['user_id']][(int)$entry['id']] = $entry;
+            }
+
+            foreach ($corrections as $correction) {
+                $userId = (string)$correction['user_id'];
+                $correctsId = (int)$correction['corrects_id'];
+                if (!isset($entries[$userId][$correctsId])) {
+                    continue;
+                }
+                $entries[$userId][$correctsId]['reason'] = (string)$correction['reason'];
+                $entries[$userId][$correctsId]['corrected_by'] = (string)$correction['granted_by'];
+                $entries[$userId][$correctsId]['correctedDisplayName'] = (string)$correction['grantedDisplayName'];
+                $entries[$userId][$correctsId]['corrected_at'] = (int)$correction['granted_at'];
+                $entries[$userId][$correctsId]['correction_id'] = (int)$correction['id'];
+                $entries[$userId][$correctsId]['entry_hash'] = (string)$correction['entry_hash'];
+                $entries[$userId][$correctsId]['previous_hash'] = (string)$correction['previous_hash'];
+            }
+
+            foreach ($entries as $userId => $userEntries) {
+                $entries[$userId] = array_values($userEntries);
             }
             return $entries;
         } finally {
@@ -119,6 +143,9 @@ class SpecialLeaveService
             'granted_at' => (int)$snapshot['granted_at'],
             'previous_hash' => (string)($snapshot['previous_hash'] ?? ''),
         ];
+        if ($canonical['schema'] >= 2) {
+            $canonical['corrects_id'] = (int)($snapshot['corrects_id'] ?? 0);
+        }
         try {
             $json = json_encode($canonical, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (JsonException $exception) {
@@ -145,6 +172,118 @@ class SpecialLeaveService
         }
     }
 
+    public function correctReason(
+        int $entryId,
+        string $expectedUserId,
+        int $expectedYear,
+        string $reason,
+        string $correctedBy
+    ): array
+    {
+        $expectedUserId = trim($expectedUserId);
+        $reason = trim($reason);
+        $correctedBy = trim($correctedBy);
+        if (
+            $entryId <= 0
+            || $expectedUserId === ''
+            || $expectedYear < 2000
+            || $expectedYear > 2100
+            || $correctedBy === ''
+            || $reason === ''
+            || mb_strlen($reason) > 255
+        ) {
+            throw new InvalidArgumentException('Invalid special leave reason correction.');
+        }
+
+        $original = $this->entryById($entryId);
+        if (
+            $original === null
+            || (int)($original['corrects_id'] ?? 0) > 0
+            || (string)$original['user_id'] !== $expectedUserId
+            || (int)$original['year'] !== $expectedYear
+        ) {
+            throw new InvalidArgumentException('Special leave entry does not exist or is not correctable.');
+        }
+
+        $userId = (string)$original['user_id'];
+        $year = (int)$original['year'];
+        $lockKey = 'nextcloud_vacation/special_leave/' . hash('sha256', $userId . '|' . $year);
+        $this->lockingProvider->acquireLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
+        try {
+            $this->db->beginTransaction();
+            try {
+                $original = $this->entryById($entryId);
+                if (
+                    $original === null
+                    || (int)($original['corrects_id'] ?? 0) > 0
+                    || (string)$original['user_id'] !== $expectedUserId
+                    || (int)$original['year'] !== $expectedYear
+                ) {
+                    throw new InvalidArgumentException('Special leave entry does not exist or is not correctable.');
+                }
+
+                $correctedAt = time();
+                $snapshot = [
+                    'schema' => 2,
+                    'user_id' => $userId,
+                    'year' => $year,
+                    'amount_hundredths' => 0,
+                    'reason' => $reason,
+                    'granted_by' => $correctedBy,
+                    'granted_at' => $correctedAt,
+                    'previous_hash' => $this->latestHash($userId, $year),
+                    'corrects_id' => $entryId,
+                ];
+                $entryHash = self::entryHash($snapshot);
+
+                $qb = $this->db->getQueryBuilder();
+                $qb->insert('vacation_special_leave')->values([
+                    'user_id' => $qb->createNamedParameter($userId),
+                    'year' => $qb->createNamedParameter($year, IQueryBuilder::PARAM_INT),
+                    'amount_hundredths' => $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT),
+                    'reason' => $qb->createNamedParameter($reason),
+                    'granted_by' => $qb->createNamedParameter($correctedBy),
+                    'granted_at' => $qb->createNamedParameter($correctedAt, IQueryBuilder::PARAM_INT),
+                    'previous_hash' => $qb->createNamedParameter($snapshot['previous_hash']),
+                    'entry_hash' => $qb->createNamedParameter($entryHash),
+                    'corrects_id' => $qb->createNamedParameter($entryId, IQueryBuilder::PARAM_INT),
+                ]);
+                $qb->executeStatement();
+                $this->db->commit();
+            } catch (Throwable $exception) {
+                $this->db->rollBack();
+                throw $exception;
+            }
+        } finally {
+            $this->lockingProvider->releaseLock($lockKey, ILockingProvider::LOCK_EXCLUSIVE);
+        }
+
+        $effective = $this->normalizeEntry($original);
+        $effective['reason'] = $reason;
+        $effective['corrected_by'] = $correctedBy;
+        $effective['correctedDisplayName'] = $this->displayName($correctedBy);
+        $effective['corrected_at'] = $correctedAt;
+        $effective['entry_hash'] = $entryHash;
+        $effective['previous_hash'] = (string)$snapshot['previous_hash'];
+        return $effective;
+    }
+
+    private function entryById(int $entryId): ?array
+    {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from('vacation_special_leave')
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($entryId, IQueryBuilder::PARAM_INT)))
+            ->setMaxResults(1);
+        $result = $qb->executeQuery();
+        try {
+            $row = $result->fetch();
+            return is_array($row) ? $row : null;
+        } finally {
+            $result->closeCursor();
+        }
+    }
+
     private function normalizeEntry(array $row): array
     {
         $grantedBy = (string)$row['granted_by'];
@@ -161,7 +300,18 @@ class SpecialLeaveService
             'granted_at' => (int)$row['granted_at'],
             'previous_hash' => (string)($row['previous_hash'] ?? ''),
             'entry_hash' => (string)$row['entry_hash'],
+            'corrects_id' => (int)($row['corrects_id'] ?? 0),
+            'corrected_by' => '',
+            'correctedDisplayName' => '',
+            'corrected_at' => 0,
+            'correction_id' => 0,
         ];
+    }
+
+    private function displayName(string $userId): string
+    {
+        $user = $this->userManager->get($userId);
+        return $user === null ? $userId : ($user->getDisplayName() ?: $userId);
     }
 
     private function parseAmount(string $amount): int

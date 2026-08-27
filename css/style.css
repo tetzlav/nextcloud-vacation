@@ -854,6 +854,31 @@
     white-space: normal;
 }
 
+.special-leave-reason-details {
+    margin-block: 3px 0 !important;
+}
+
+.special-leave-reason-details > summary {
+    color: var(--color-primary-element);
+    font-size: var(--vacation-font-size-small);
+    font-weight: 600;
+}
+
+.special-leave-reason-form {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: minmax(0, 150px) 34px;
+    margin-block-start: 5px;
+    width: 190px;
+}
+
+.special-leave-reason-form label,
+.special-leave-reason-form input {
+    min-width: 0;
+    width: 100%;
+}
+
 .special-leave-form {
     align-items: end;
     display: grid;

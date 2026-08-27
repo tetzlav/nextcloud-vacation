@@ -9,6 +9,7 @@ $confirmCancellationUrlTemplate = $_['confirmCancellationUrlTemplate'];
 $keepBookingUrlTemplate = $_['keepBookingUrlTemplate'];
 $carryoverSaveUrl = $_['carryoverSaveUrl'];
 $specialLeaveUrl = $_['specialLeaveUrl'];
+$specialLeaveReasonUrl = $_['specialLeaveReasonUrl'];
 $approverAssignmentUrl = $_['approverAssignmentUrl'];
 $approverAssignments = $_['approverAssignments'];
 $approverCandidates = $_['approverCandidates'];
@@ -496,6 +497,22 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                             <div class="special-leave-entry" title="SHA-256 <?php p($entry['entry_hash']); ?>">
                                                 <span><?php p($formatDayAmount((float)$entry['amount'])); ?> <?php p($dayUnit((float)$entry['amount'])); ?> &middot; <?php p($entry['reason']); ?></span>
                                                 <small><?php p($l->t('Posted on %1$s by %2$s', [$formatTimestamp((int)$entry['granted_at']), $entry['grantedDisplayName']])); ?></small>
+                                                <?php if ((int)$entry['corrected_at'] > 0): ?>
+                                                    <small><?php p($l->t('Reason corrected on %1$s by %2$s', [$formatTimestamp((int)$entry['corrected_at']), $entry['correctedDisplayName']])); ?></small>
+                                                <?php endif; ?>
+                                                <details class="special-leave-reason-details">
+                                                    <summary><?php p($l->t('Edit reason')); ?></summary>
+                                                    <form method="post" action="<?php p($specialLeaveReasonUrl); ?>" class="special-leave-reason-form">
+                                                        <?php if ($requestToken !== ''): ?><input type="hidden" name="requesttoken" value="<?php p($requestToken); ?>"><?php endif; ?>
+                                                        <input type="hidden" name="year" value="<?php p($_['year']); ?>">
+                                                        <input type="hidden" name="user_id" value="<?php p($row['userId']); ?>">
+                                                        <input type="hidden" name="entry_id" value="<?php p($entry['id']); ?>">
+                                                        <label>
+                                                            <input type="text" name="reason" value="<?php p($entry['reason']); ?>" maxlength="255" aria-label="<?php p($l->t('Reason')); ?>" required>
+                                                        </label>
+                                                        <button type="submit" class="carryover-button" title="<?php p($l->t('Save reason')); ?>" aria-label="<?php p($l->t('Save reason')); ?>">&#10003;</button>
+                                                    </form>
+                                                </details>
                                             </div>
                                         <?php endforeach; ?>
                                         <?php if (count($row['specialLeaveEntries']) === 0): ?>
@@ -517,8 +534,14 @@ $summaryApprovalForRanges = static function (array $ranges): ?array {
                                         </form>
                                         <small><?php p($l->t('Use a negative amount to correct an earlier entry.')); ?></small>
                                         <?php if ((string)$_['openBalanceUserId'] === (string)$row['userId'] && $_['specialLeaveResult'] !== ''): ?>
-                                            <span class="special-leave-result <?php p($_['specialLeaveResult'] === 'added' ? 'special-leave-success' : 'special-leave-error'); ?>">
-                                                <?php p($_['specialLeaveResult'] === 'added' ? $l->t('Special leave posted') : $l->t('Special leave could not be posted')); ?>
+                                            <span class="special-leave-result <?php p(in_array($_['specialLeaveResult'], ['added', 'corrected'], true) ? 'special-leave-success' : 'special-leave-error'); ?>">
+                                                <?php if ($_['specialLeaveResult'] === 'added'): ?>
+                                                    <?php p($l->t('Special leave posted')); ?>
+                                                <?php elseif ($_['specialLeaveResult'] === 'corrected'): ?>
+                                                    <?php p($l->t('Special leave reason corrected')); ?>
+                                                <?php else: ?>
+                                                    <?php p($l->t('Special leave could not be changed')); ?>
+                                                <?php endif; ?>
                                             </span>
                                         <?php endif; ?>
                                     </div>

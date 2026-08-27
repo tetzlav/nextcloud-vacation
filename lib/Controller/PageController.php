@@ -131,6 +131,7 @@ class PageController extends Controller
             'keepBookingUrlTemplate' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approval.keep_booking', ['id' => '__REQUEST_ID__']),
             'carryoverSaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.carryover.save'),
             'specialLeaveUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.special_leave.grant'),
+            'specialLeaveReasonUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.special_leave.correct_reason'),
             'approverAssignmentUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.approver_assignment.save'),
             'approverAssignments' => $approvalOverview ? $this->employeeApproverService->assignments() : [],
             'approverCandidates' => $approvalOverview ? $this->employeeApproverService->candidates() : [],

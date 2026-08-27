@@ -142,6 +142,16 @@ class VacationPdfService
 
     private function specialLeavePostingLines(array $entry, string $timeZone, IL10N $l10n): array
     {
+        if ((int)($entry['corrected_at'] ?? 0) > 0) {
+            $correctedAt = (new DateTimeImmutable('@' . (int)$entry['corrected_at']))
+                ->setTimezone(new DateTimeZone($timeZone));
+            return [
+                $l10n->t('Corrected on %s', [$this->date($correctedAt->format('Y-m-d'), $l10n)]),
+                $l10n->t('by %s', [(string)$entry['correctedDisplayName']]),
+                'SHA-256 ' . (string)$entry['entry_hash'],
+            ];
+        }
+
         $postedAt = (new DateTimeImmutable('@' . (int)$entry['granted_at']))
             ->setTimezone(new DateTimeZone($timeZone));
         return [

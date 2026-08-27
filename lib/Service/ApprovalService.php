@@ -154,6 +154,43 @@ class ApprovalService
         );
     }
 
+    public function notifySpecialLeaveReasonCorrected(array $entry): void
+    {
+        if (!$this->employeeNotificationsEnabled()) {
+            return;
+        }
+
+        $userId = (string)$entry['user_id'];
+        $user = $this->userManager->get($userId);
+        if ($user === null || $user->getEMailAddress() === null) {
+            return;
+        }
+
+        $correctorId = (string)$entry['corrected_by'];
+        $corrector = $this->userManager->get($correctorId);
+        $correctorName = $corrector === null ? $correctorId : ($corrector->getDisplayName() ?: $correctorId);
+        $l = $this->l10nForUser($user);
+        $correctedAt = $this->formatMailTimestamp((int)$entry['corrected_at'], $userId, $l);
+        $amount = (int)$entry['amount_hundredths'] / 100;
+
+        $this->sendMail(
+            [$user->getEMailAddress() => $user->getDisplayName() ?: $userId],
+            $l->t('Special leave reason corrected'),
+            $l->t(
+                "The reason for a special leave entry was corrected. The credited days remain unchanged.\n\nYear: %1\$s\nDays: %2\$s\nNew reason: %3\$s\nCorrected by: %4\$s\nCorrected at: %5\$s\n\n%6\$s",
+                [
+                    (string)$entry['year'],
+                    $this->formatDayAmount($amount, $userId),
+                    (string)$entry['reason'],
+                    $correctorName,
+                    $correctedAt,
+                    $this->personalAppUrl($entry),
+                ]
+            ),
+            self::MAIL_KIND_EMPLOYEE
+        );
+    }
+
     public function autoApprovalGroups(): array
     {
         return $this->csvConfig($this->config->getAppValue(Application::APP_ID, 'auto_approval_groups', ''));

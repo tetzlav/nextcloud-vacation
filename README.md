@@ -111,7 +111,7 @@ sudo -u nextcloud \
   /home/nextcloud/src/nextcloud_vacation/bin/deploy-nextcloud --upgrade
 ```
 
-Version `0.1.34` adds per-employee approver assignments and requires one database migration. Version `0.1.33` adds the append-only special-leave journal and requires one database migration. Version `0.1.32` adds immutable approval revisions, snapshot hashes and the `vacation:request` inspection command. Its migration creates the revision table and records existing currently approved bookings as revision `R1`. Version `0.1.31` removes the obsolete CLI prototype and its private Sabre/Guzzle stack to avoid conflicts with Nextcloud's bundled libraries; it does not add a database migration. Version `0.1.30` adds the PDF export, configurable PDF logo, PDF route and locked Composer dependencies; it does not add a database migration. Version `0.1.29` separates the personal overview from the protected approval overview; it does not add a migration. Version `0.1.24` adds an audit table and binding approved bookings. Version `0.1.23` adds mail queue categories so employee notifications can be skipped while approver notifications still work. Version `0.1.22` adds a database migration for the async mail queue. Version `0.1.21` adds a database migration for calendar-entry source keys on vacation requests. Version `0.1.20` adds a database migration for per-user entitlements and auto-approval metadata. Version `0.1.19` added a database migration for rejection metadata. Version `0.1.18` added a database migration for carryovers and half-day approval counts. After pulling a version with migrations, run `occ upgrade` once. For later ordinary code, template, CSS or translation fixes, no migration command is needed. Only run `occ upgrade`
+Version `0.1.35` adds linked special-leave reason corrections and requires one database migration. Version `0.1.34` adds per-employee approver assignments and requires one database migration. Version `0.1.33` adds the append-only special-leave journal and requires one database migration. Version `0.1.32` adds immutable approval revisions, snapshot hashes and the `vacation:request` inspection command. Its migration creates the revision table and records existing currently approved bookings as revision `R1`. Version `0.1.31` removes the obsolete CLI prototype and its private Sabre/Guzzle stack to avoid conflicts with Nextcloud's bundled libraries; it does not add a database migration. Version `0.1.30` adds the PDF export, configurable PDF logo, PDF route and locked Composer dependencies; it does not add a database migration. Version `0.1.29` separates the personal overview from the protected approval overview; it does not add a migration. Version `0.1.24` adds an audit table and binding approved bookings. Version `0.1.23` adds mail queue categories so employee notifications can be skipped while approver notifications still work. Version `0.1.22` adds a database migration for the async mail queue. Version `0.1.21` adds a database migration for calendar-entry source keys on vacation requests. Version `0.1.20` adds a database migration for per-user entitlements and auto-approval metadata. Version `0.1.19` added a database migration for rejection metadata. Version `0.1.18` added a database migration for carryovers and half-day approval counts. After pulling a version with migrations, run `occ upgrade` once. For later ordinary code, template, CSS or translation fixes, no migration command is needed. Only run `occ upgrade`
 deliberately when an update actually contains a new app migration. In the tested
 Nextcloud setup there is no per-app migration command, and `occ upgrade` can also
 update unrelated apps.
@@ -183,14 +183,16 @@ following year.
 
 Calendar managers add special leave in the expandable balance section of the protected
 **Vacation management** view. Positive entries increase the employee's entitlement for
-the selected year. Corrections are recorded as new negative entries; existing entries
-are never edited or deleted. Special leave is not carried into another year automatically.
+the selected year. Amount corrections are recorded as new negative entries. A reason can
+be corrected directly on its entry; internally this creates a linked zero-day journal
+entry, so the original booking remains unchanged. Entries are never edited or deleted.
+Special leave is not carried into another year automatically.
 Each posting is linked to the previous posting for that employee and year and stores its
 own SHA-256 hash. An exclusive Nextcloud lock serializes postings per employee and year
 so concurrent requests cannot create two successors for the same hash. If employee
-notifications are enabled, the posting also queues a localized status email. The yearly
-PDF lists every posting directly below the annual
-vacation entitlement with its reason, posting date, manager and hash.
+notifications are enabled, postings and reason corrections queue localized status emails.
+The yearly PDF lists each effective special-leave booking directly below the annual
+vacation entitlement with its current reason, posting or correction date, manager and hash.
 
 ## Approval Workflow
 

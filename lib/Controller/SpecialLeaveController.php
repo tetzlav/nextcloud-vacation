@@ -59,4 +59,36 @@ class SpecialLeaveController extends Controller
             'special_leave_result' => $result,
         ]));
     }
+
+    /**
+     * @NoAdminRequired
+     */
+    public function correctReason(): RedirectResponse
+    {
+        $year = (int)$this->request->getParam('year', date('Y'));
+        $userId = trim((string)$this->request->getParam('user_id', ''));
+        $result = 'forbidden';
+
+        if ($this->UserId !== null && $userId !== '' && $this->reportService->isCalendarAdmin($this->UserId)) {
+            try {
+                $entry = $this->specialLeaveService->correctReason(
+                    (int)$this->request->getParam('entry_id', 0),
+                    $userId,
+                    $year,
+                    (string)$this->request->getParam('reason', ''),
+                    $this->UserId
+                );
+                $this->approvalService->notifySpecialLeaveReasonCorrected($entry);
+                $result = 'corrected';
+            } catch (InvalidArgumentException) {
+                $result = 'invalid';
+            }
+        }
+
+        return new RedirectResponse($this->urlGenerator->linkToRoute(Application::APP_ID . '.page.approvals', [
+            'year' => $year,
+            'open_balance_user_id' => $userId,
+            'special_leave_result' => $result,
+        ]));
+    }
 }
