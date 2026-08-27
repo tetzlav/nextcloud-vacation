@@ -5,18 +5,20 @@ set -Eeuo pipefail
 SOURCE_DIR="${SOURCE_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)}"
 NEXTCLOUD_DIR="${NEXTCLOUD_DIR:-/var/www/nextcloud}"
 TARGET_DIR="${TARGET_DIR:-${NEXTCLOUD_DIR}/custom_apps/nextcloud_vacation}"
-RUN_UPGRADE=0
+APP_ID="nextcloud_vacation"
+RUN_APP_MIGRATIONS=0
 
 usage() {
     cat <<'EOF'
-Usage: deploy-nextcloud [--upgrade]
+Usage: deploy-nextcloud [--upgrade|--migrate]
 
 Pull the source repository with --ff-only and deploy it without .git to
 Nextcloud's custom_apps directory.
 
 Options:
-  --upgrade  Run "php occ upgrade" after deployment. Use only when the update
-             contains an app migration, because it may update other apps too.
+  --upgrade  Run pending migrations only for nextcloud_vacation and update its
+             installed version. Does not run the global Nextcloud upgrade.
+  --migrate  Alias for --upgrade.
   -h, --help Show this help.
 
 Paths can be overridden with SOURCE_DIR, NEXTCLOUD_DIR and TARGET_DIR.
@@ -25,8 +27,8 @@ EOF
 
 while (($# > 0)); do
     case "$1" in
-        --upgrade)
-            RUN_UPGRADE=1
+        --upgrade|--migrate)
+            RUN_APP_MIGRATIONS=1
             ;;
         -h|--help)
             usage
@@ -88,13 +90,14 @@ composer install \
 mkdir -p -- "$TARGET_DIR"
 printf 'Deploying to: %s\n' "$TARGET_DIR"
 rsync -a --delete --delete-excluded \
+    --chmod=D755,F644 \
     --exclude='.git/' \
     "$SOURCE_DIR/" \
     "$TARGET_DIR/"
 
-if ((RUN_UPGRADE == 1)); then
-    printf 'Running Nextcloud upgrade explicitly...\n'
-    php "${NEXTCLOUD_DIR}/occ" upgrade
+if ((RUN_APP_MIGRATIONS == 1)); then
+    printf 'Running the targeted Nextcloud update for %s only...\n' "$APP_ID"
+    php "${NEXTCLOUD_DIR}/occ" vacation:upgrade-app
 fi
 
 printf 'Deployed nextcloud-vacation commit %s\n' "$(git -C "$SOURCE_DIR" rev-parse --short HEAD)"
