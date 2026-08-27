@@ -113,11 +113,12 @@ sudo -u nextcloud \
 
 Version `0.1.35` adds linked special-leave reason corrections and requires one database migration. Version `0.1.34` adds per-employee approver assignments and requires one database migration. Version `0.1.33` adds the append-only special-leave journal and requires one database migration. Version `0.1.32` adds immutable approval revisions, snapshot hashes and the `vacation:request` inspection command. Its migration creates the revision table and records existing currently approved bookings as revision `R1`. Version `0.1.31` removes the obsolete CLI prototype and its private Sabre/Guzzle stack to avoid conflicts with Nextcloud's bundled libraries; it does not add a database migration. Version `0.1.30` adds the PDF export, configurable PDF logo, PDF route and locked Composer dependencies; it does not add a database migration. Version `0.1.29` separates the personal overview from the protected approval overview; it does not add a migration. Version `0.1.24` adds an audit table and binding approved bookings. Version `0.1.23` adds mail queue categories so employee notifications can be skipped while approver notifications still work. Version `0.1.22` adds a database migration for the async mail queue. Version `0.1.21` adds a database migration for calendar-entry source keys on vacation requests. Version `0.1.20` adds a database migration for per-user entitlements and auto-approval metadata. Version `0.1.19` added a database migration for rejection metadata. Version `0.1.18` added a database migration for carryovers and half-day approval counts.
 
-The script's `--upgrade` option is deliberately app-scoped: it runs
-`occ vacation:upgrade-app`, which invokes Nextcloud's update process only for
-`nextcloud_vacation`. It never runs the global `occ upgrade`, so unrelated App
-Store applications are not updated. Ordinary code, template, CSS or translation
-changes need neither `--upgrade` nor `--migrate`.
+The script's `--upgrade` option is deliberately app-scoped: it bootstraps
+Nextcloud's CLI environment and invokes the update process only for
+`nextcloud_vacation`. This also works while Nextcloud exposes only its reduced
+command set because an app upgrade is pending. It never runs the global `occ
+upgrade`, so unrelated App Store applications are not updated. Ordinary code,
+template, CSS or translation changes need neither `--upgrade` nor `--migrate`.
 
 ## Configuration
 

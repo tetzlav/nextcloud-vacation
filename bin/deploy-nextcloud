@@ -97,7 +97,7 @@ rsync -a --delete --delete-excluded \
 
 if ((RUN_APP_MIGRATIONS == 1)); then
     printf 'Running the targeted Nextcloud update for %s only...\n' "$APP_ID"
-    php "${NEXTCLOUD_DIR}/occ" vacation:upgrade-app
+    php "${TARGET_DIR}/bin/upgrade-app.php" "$NEXTCLOUD_DIR"
 fi
 
 printf 'Deployed nextcloud-vacation commit %s\n' "$(git -C "$SOURCE_DIR" rev-parse --short HEAD)"
